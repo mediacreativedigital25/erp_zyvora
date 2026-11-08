@@ -58,8 +58,8 @@ export const SalesOrderReceiveCreatePage: React.FC<SalesOrderReceiveCreatePagePr
     branches,
     warehouses,
     products,
-    setSalesOrders,
-    setServiceBookings,
+    updateSalesOrder,
+    updateServiceBooking,
     addToast
   } = useErp();
 
@@ -280,35 +280,21 @@ export const SalesOrderReceiveCreatePage: React.FC<SalesOrderReceiveCreatePagePr
       return;
     }
 
-    // Move status of the order to 'received' in ErpContext
+    // Move status of the order to 'received' in ErpContext and Supabase
     if (selectedOrder.sourceType === 'goods' && selectedOrder.rawGoodsOrder) {
       const targetId = selectedOrder.rawGoodsOrder.id;
-      setSalesOrders((prev) =>
-        prev.map((o) =>
-          o.id === targetId
-            ? {
-                ...o,
-                status: 'received',
-                receiveNumber: reserveNumber,
-                receiveDate: reserveDate
-              }
-            : o
-        )
-      );
+      updateSalesOrder(targetId, {
+        status: 'received',
+        receiveNumber: reserveNumber,
+        receiveDate: reserveDate
+      });
     } else if (selectedOrder.rawServiceBooking) {
       const targetId = selectedOrder.rawServiceBooking.id;
-      setServiceBookings((prev) =>
-        prev.map((b) =>
-          b.id === targetId
-            ? {
-                ...b,
-                status: 'received',
-                receiveNumber: reserveNumber,
-                receiveDate: reserveDate
-              }
-            : b
-        )
-      );
+      updateServiceBooking(targetId, {
+        status: 'received',
+        receiveNumber: reserveNumber,
+        receiveDate: reserveDate
+      });
     }
 
     addToast(

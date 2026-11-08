@@ -55,6 +55,16 @@ export const ALL_TENANTS: Tenant[] = [
     plan: 'growth',
     createdAt: '2025-03-10T00:00:00Z',
     status: 'active'
+  },
+  {
+    id: 'ten_hizaki_wedding',
+    name: 'Hizaki Wedding Planner',
+    code: 'HZK',
+    tenantNumber: '004',
+    slug: 'hizaki-wedding-planner',
+    plan: 'enterprise',
+    createdAt: '2025-04-01T00:00:00Z',
+    status: 'active'
   }
 ];
 

@@ -90,9 +90,9 @@ export interface UnifiedReceiveItem {
 export const SalesOrderReceiveView: React.FC = () => {
   const {
     salesOrders,
-    setSalesOrders,
+    updateSalesOrder,
     serviceBookings,
-    setServiceBookings,
+    updateServiceBooking,
     branches,
     warehouses,
     addToast
@@ -107,8 +107,8 @@ export const SalesOrderReceiveView: React.FC = () => {
   // =========================================================================
   // Left Column Filters
   const [filterBranch, setFilterBranch] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState<string>(getTodayDateString());
-  const [dateTo, setDateTo] = useState<string>(getTodayDateString());
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [filterCustomer, setFilterCustomer] = useState<{ id: string; code: string; name: string } | null>(null);
   const [filterOrderNumber, setFilterOrderNumber] = useState<string>('all');
 
@@ -302,10 +302,10 @@ export const SalesOrderReceiveView: React.FC = () => {
   }, [salesOrders, serviceBookings, branches, warehouses]);
 
   // =========================================================================
-  // RECEIVED ITEMS QUEUE (EXCLUDES 'OPEN' ORDERS AS PER ERP SPECIFICATION)
+  // RECEIVED ITEMS QUEUE (INCLUDES OPEN, RECEIVED, AND PICKED ORDERS)
   // =========================================================================
   const receivedItems: UnifiedReceiveItem[] = useMemo(() => {
-    return unifiedItems.filter((item) => item.status.toLowerCase() !== 'open');
+    return unifiedItems;
   }, [unifiedItems]);
 
   // =========================================================================
@@ -385,8 +385,8 @@ export const SalesOrderReceiveView: React.FC = () => {
   // Reset Filters Handler
   const handleResetFilters = () => {
     setFilterBranch('all');
-    setDateFrom(getTodayDateString());
-    setDateTo(getTodayDateString());
+    setDateFrom('');
+    setDateTo('');
     setFilterCustomer(null);
     setFilterOrderNumber('all');
     setFilterOrderType('all');
@@ -464,33 +464,25 @@ export const SalesOrderReceiveView: React.FC = () => {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    if (goodsIds.length > 0) {
-      setSalesOrders((prev) =>
-        prev.map((o) => {
-          if (!goodsIds.includes(o.id)) return o;
-          return {
-            ...o,
-            status: 'received',
-            receiveNumber: o.receiveNumber || generateRsvNumber(o.branchId || '01', today),
-            receiveDate: o.receiveDate || today
-          };
-        })
-      );
-    }
+    goodsIds.forEach((gid) => {
+      const so = salesOrders.find((o) => o.id === gid);
+      const rsvNo = so?.receiveNumber || generateRsvNumber(so?.branchId || '01', today);
+      updateSalesOrder(gid, {
+        status: 'received',
+        receiveNumber: rsvNo,
+        receiveDate: today
+      });
+    });
 
-    if (serviceIds.length > 0) {
-      setServiceBookings((prev) =>
-        prev.map((b) => {
-          if (!serviceIds.includes(b.id)) return b;
-          return {
-            ...b,
-            status: 'received',
-            receiveNumber: b.receiveNumber || generateRsvNumber(b.branchCode || '01', today),
-            receiveDate: b.receiveDate || today
-          };
-        })
-      );
-    }
+    serviceIds.forEach((sid) => {
+      const sb = serviceBookings.find((b) => b.id === sid);
+      const rsvNo = sb?.receiveNumber || generateRsvNumber(sb?.branchCode || '01', today);
+      updateServiceBooking(sid, {
+        status: 'received',
+        receiveNumber: rsvNo,
+        receiveDate: today
+      });
+    });
 
     addToast(
       'Batch Validation Completed',
@@ -789,9 +781,10 @@ export const SalesOrderReceiveView: React.FC = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full h-9 px-3 py-2 bg-white border border-[#CBD5E1] rounded-lg text-xs text-[#0F172A] focus:outline-hidden focus:border-[#086288] focus:ring-1 focus:ring-[#086288] cursor-pointer"
                 >
-                  <option value="all">All Received Status</option>
+                  <option value="all">--- All Status (Open, Received, Picked) ---</option>
+                  <option value="open">OPEN (Menunggu Receive / Validasi)</option>
                   <option value="received">RECEIVED (Gate 1 Validated)</option>
-                  <option value="picked">PICKED (Gate 2 Picking)</option>
+                  <option value="picked">PICKED (Gate 2 Picking / DO)</option>
                 </select>
               </div>
             </div>
@@ -931,9 +924,24 @@ export const SalesOrderReceiveView: React.FC = () => {
                         />
                       </td>
 
-                      {/* 2. Action Column (Inspection Detail Only) */}
+                      {/* 2. Action Column (Inspection Detail & Quick Receive) */}
                       <td className="py-2.5 px-2 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {/* Quick Receive for Open items */}
+                          {item.status.toLowerCase() === 'open' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOrderToReceive(item);
+                                setViewMode('create');
+                              }}
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Process Validation & Receive (Gate 1)"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                          )}
+
                           {/* Inspection / View Details */}
                           <button
                             type="button"

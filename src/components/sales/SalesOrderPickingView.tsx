@@ -71,8 +71,8 @@ export const SalesOrderPickingView: React.FC = () => {
   // =========================================================================
   // Left Column Filters
   const [filterBranch, setFilterBranch] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState<string>(getTodayDateString());
-  const [dateTo, setDateTo] = useState<string>(getTodayDateString());
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   // Right Column Filters
   const [filterCustomer, setFilterCustomer] = useState<{ id: string; code: string; name: string } | null>(null);
@@ -288,10 +288,13 @@ export const SalesOrderPickingView: React.FC = () => {
   }, [allPickingOrders]);
 
   // =========================================================================
-  // STRICT FILTER: ONLY ORDERS THAT HAVE PASSED PICKING (STATUS === 'picked')
+  // QUEUE DATA: ORDERS READY FOR PICKING ('received') AND COMPLETED ('picked')
   // =========================================================================
   const pickedOrders = useMemo(() => {
-    return allPickingOrders.filter((item) => item.status.toLowerCase() === 'picked');
+    return allPickingOrders.filter((item) => {
+      const s = item.status.toLowerCase();
+      return s === 'received' || s === 'picked';
+    });
   }, [allPickingOrders]);
 
   // Filtered List based on pickedOrders
@@ -347,8 +350,8 @@ export const SalesOrderPickingView: React.FC = () => {
   // Reset Filters
   const handleResetFilters = () => {
     setFilterBranch('all');
-    setDateFrom(getTodayDateString());
-    setDateTo(getTodayDateString());
+    setDateFrom('');
+    setDateTo('');
     setFilterCustomer(null);
     setFilterStatus('all');
     setTableSearch('');
@@ -574,7 +577,8 @@ export const SalesOrderPickingView: React.FC = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full h-9 px-3 py-2 bg-white border border-[#CBD5E1] rounded-lg text-xs text-[#0F172A] focus:outline-hidden focus:border-[#086288] focus:ring-1 focus:ring-[#086288] cursor-pointer"
                 >
-                  <option value="all">--- All Status ---</option>
+                  <option value="all">--- All Status (Received & Picked) ---</option>
+                  <option value="received">RECEIVED (Siap Diproses Picking)</option>
                   <option value="picked">PICKED (Gate 2 Passed - DO Generated)</option>
                 </select>
               </div>
@@ -717,9 +721,25 @@ export const SalesOrderPickingView: React.FC = () => {
                         />
                       </td>
 
-                      {/* 2. Action Column (Inspection Eye & Quick Print DO) */}
+                      {/* 2. Action Column (Process Picking, Inspection Eye & Quick Print DO) */}
                       <td className="py-2.5 px-2 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {/* Process Picking for Received Orders */}
+                          {item.status.toLowerCase() === 'received' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetOrder = availableOrdersForPicking.find((o) => o.id === item.id) || null;
+                                setOrderToPick(targetOrder);
+                                setViewMode('create');
+                              }}
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Process Delivery Picking (Gate 2)"
+                            >
+                              <PackageCheck className="w-4 h-4" />
+                            </button>
+                          )}
+
                           {/* Detail & Inspection */}
                           <button
                             type="button"
@@ -730,15 +750,17 @@ export const SalesOrderPickingView: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Quick Print DO Sheet */}
-                          <button
-                            type="button"
-                            onClick={() => handlePrintSingle(item)}
-                            className="p-1.5 text-slate-500 hover:text-[#086288] hover:bg-[#EFF7FA] rounded-lg transition-colors cursor-pointer"
-                            title="Print Delivery Order (Surat Jalan)"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
+                          {/* Quick Print DO Sheet (for Picked Orders) */}
+                          {item.status.toLowerCase() === 'picked' && (
+                            <button
+                              type="button"
+                              onClick={() => handlePrintSingle(item)}
+                              className="p-1.5 text-slate-500 hover:text-[#086288] hover:bg-[#EFF7FA] rounded-lg transition-colors cursor-pointer"
+                              title="Print Delivery Order (Surat Jalan)"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -758,14 +780,25 @@ export const SalesOrderPickingView: React.FC = () => {
 
                       {/* 5. DO Number */}
                       <td className="py-2.5 px-3">
-                        <div className="space-y-0.5">
-                          <span className="font-mono text-xs font-extrabold text-[#086288] bg-[#EFF7FA] border border-[#B7DDEA] px-2 py-0.5 rounded inline-block">
-                            {item.deliveryOrderNumber || `DO${item.branchCode}20261100001`}
-                          </span>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            Ref: {item.receiveNumber || item.orderNumber}
+                        {item.deliveryOrderNumber ? (
+                          <div className="space-y-0.5">
+                            <span className="font-mono text-xs font-extrabold text-[#086288] bg-[#EFF7FA] border border-[#B7DDEA] px-2 py-0.5 rounded inline-block">
+                              {item.deliveryOrderNumber}
+                            </span>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              Ref: {item.receiveNumber || item.orderNumber}
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded inline-block">
+                              Siap Picking
+                            </span>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              Ref: {item.receiveNumber || item.orderNumber}
+                            </div>
+                          </div>
+                        )}
                       </td>
 
                       {/* 6. Customer Code */}

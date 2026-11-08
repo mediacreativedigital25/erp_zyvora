@@ -72,8 +72,10 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
     warehouses,
     customers,
     products,
-    setSalesOrders,
-    setServiceBookings,
+    salesOrders,
+    serviceBookings,
+    updateSalesOrder,
+    updateServiceBooking,
     createSalesInvoice,
     addToast
   } = useErp();
@@ -378,51 +380,46 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
     // 1. Generate Canonical DO Number: DO + 2-digit Branch + YYYYMM + 5-digit Seq (15 chars)
     const doNumber = generateDoNumber(selectedOrder.branchCode || '01', pickingDate);
 
-    // 2. Update Order Status to 'picked' in Collections (Robust Matching)
+    // 2. Update Order Status to 'picked' in Collections & Supabase
     const cleanId = selectedOrder.id.replace(/^(so_|sb_)/, '');
     const orderNo = selectedOrder.orderNumber;
 
-    // A. Update in Sales Orders (Goods)
-    setSalesOrders((prev) =>
-      prev.map((o) => {
-        const isMatch =
-          (selectedOrder.rawGoodsOrder && o.id === selectedOrder.rawGoodsOrder.id) ||
-          o.orderNumber === orderNo ||
-          o.id === cleanId ||
-          o.id === selectedOrder.id;
+    if (selectedOrder.sourceType === 'goods' && selectedOrder.rawGoodsOrder) {
+      updateSalesOrder(selectedOrder.rawGoodsOrder.id, {
+        status: 'picked',
+        deliveryOrderNumber: doNumber,
+        pickingDate
+      });
+    } else if (selectedOrder.rawServiceBooking) {
+      updateServiceBooking(selectedOrder.rawServiceBooking.id, {
+        status: 'picked',
+        deliveryOrderNumber: doNumber,
+        pickingDate
+      });
+    } else {
+      // Fallback matching across collections
+      const targetSo = salesOrders.find(
+        (o) => o.id === selectedOrder.id || o.id === cleanId || o.orderNumber === orderNo
+      );
+      if (targetSo) {
+        updateSalesOrder(targetSo.id, {
+          status: 'picked',
+          deliveryOrderNumber: doNumber,
+          pickingDate
+        });
+      }
 
-        if (isMatch) {
-          return {
-            ...o,
-            status: 'picked',
-            deliveryOrderNumber: doNumber,
-            pickingDate
-          };
-        }
-        return o;
-      })
-    );
-
-    // B. Update in Service Bookings (Service / Normal SO)
-    setServiceBookings((prev) =>
-      prev.map((b) => {
-        const isMatch =
-          (selectedOrder.rawServiceBooking && b.id === selectedOrder.rawServiceBooking.id) ||
-          b.bookingNumber === orderNo ||
-          b.id === cleanId ||
-          b.id === selectedOrder.id;
-
-        if (isMatch) {
-          return {
-            ...b,
-            status: 'picked',
-            deliveryOrderNumber: doNumber,
-            pickingDate
-          };
-        }
-        return b;
-      })
-    );
+      const targetSb = serviceBookings.find(
+        (b) => b.id === selectedOrder.id || b.id === cleanId || b.bookingNumber === orderNo
+      );
+      if (targetSb) {
+        updateServiceBooking(targetSb.id, {
+          status: 'picked',
+          deliveryOrderNumber: doNumber,
+          pickingDate
+        });
+      }
+    }
 
     // 3. AUTO-GENERATE COMMERCIAL SALES INVOICE (FAKTUR TAGIHAN PELANGGAN)
     const customerObj = customers.find(
