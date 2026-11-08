@@ -22,20 +22,63 @@ import {
 // TENANT & DATE SANITIZATION HELPERS (PostgreSQL Type Compliance)
 // ====================================================================
 
+const CANONICAL_TENANTS = new Set([
+  'ten_zyvora_corp',
+  'ten_hizaki_wedding',
+  'ten_yulovi_holdings',
+  'ten_prima_logistik'
+]);
+
+const TENANT_ALIAS_MAP: Record<string, string> = {
+  'zyv-corp': 'ten_zyvora_corp',
+  'zyv': 'ten_zyvora_corp',
+  'zyvora': 'ten_zyvora_corp',
+  'zyvora-enterprises': 'ten_zyvora_corp',
+  '001': 'ten_zyvora_corp',
+  'ten_zyvora_corp': 'ten_zyvora_corp',
+
+  'hzk': 'ten_hizaki_wedding',
+  'hizaki': 'ten_hizaki_wedding',
+  'hizaki-wedding-planner': 'ten_hizaki_wedding',
+  '004': 'ten_hizaki_wedding',
+  'ten_hizaki_wedding': 'ten_hizaki_wedding',
+
+  'yul-hold': 'ten_yulovi_holdings',
+  'yulovi': 'ten_yulovi_holdings',
+  'yulovi-holdings': 'ten_yulovi_holdings',
+  '002': 'ten_yulovi_holdings',
+  'ten_yulovi_holdings': 'ten_yulovi_holdings',
+
+  'pls-log': 'ten_prima_logistik',
+  'pls': 'ten_prima_logistik',
+  'prima': 'ten_prima_logistik',
+  'prima-logistik': 'ten_prima_logistik',
+  '003': 'ten_prima_logistik',
+  'ten_prima_logistik': 'ten_prima_logistik',
+};
+
 /**
  * Safely normalizes tenant IDs to guarantee foreign key integrity against public.tenants.
- * Never allows dummy/fallback UUIDs or raw codes to reach the database.
+ * Whitelists valid database primary keys and alias mappings.
+ * Strictly prevents unverified codes or arbitrary strings from triggering FK violations.
  */
 export const sanitizeTenantId = (tid?: string | null): string => {
-  if (!tid || tid === '00000000-0000-4000-8000-000000000001' || tid === 'undefined' || tid === 'null' || !tid.trim()) {
+  if (!tid || typeof tid !== 'string' || !tid.trim()) {
     return 'ten_zyvora_corp';
   }
   const clean = tid.trim();
-  if (clean === 'ZYV-CORP') return 'ten_zyvora_corp';
-  if (clean === 'HZK') return 'ten_hizaki_wedding';
-  if (clean === 'YUL-HOLD') return 'ten_yulovi_holdings';
-  if (clean === 'PLS-LOG') return 'ten_prima_logistik';
-  return clean;
+  if (clean === '00000000-0000-4000-8000-000000000001' || clean === 'undefined' || clean === 'null') {
+    return 'ten_zyvora_corp';
+  }
+  const lower = clean.toLowerCase();
+  if (TENANT_ALIAS_MAP[lower]) {
+    return TENANT_ALIAS_MAP[lower];
+  }
+  if (CANONICAL_TENANTS.has(clean)) {
+    return clean;
+  }
+  // Safe canonical fallback to guarantee foreign key integrity against public.tenants
+  return 'ten_zyvora_corp';
 };
 
 /**

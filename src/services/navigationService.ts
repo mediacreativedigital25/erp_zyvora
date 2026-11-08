@@ -441,7 +441,7 @@ export class NavigationService {
     if (!isSuperAdmin && !isAdmin) {
       return {
         success: false,
-        message: 'Access Denied: Only Administrators are authorized to add system navigation menus.'
+        message: 'Akses Ditolak: Hanya Administrator yang berwenang menambahkan menu navigasi sistem.'
       };
     }
 

@@ -25,11 +25,12 @@ export class TenantMasterService {
       return CANONICAL_FALLBACK_TENANT_ID;
     }
     const clean = tenantId.trim();
-    if (clean === 'ZYV-CORP') return 'ten_zyvora_corp';
-    if (clean === 'HZK') return 'ten_hizaki_wedding';
-    if (clean === 'YUL-HOLD') return 'ten_yulovi_holdings';
-    if (clean === 'PLS-LOG') return 'ten_prima_logistik';
-    if (clean.startsWith('ten_') || UUID_REGEX.test(clean)) {
+    const lower = clean.toLowerCase();
+    if (lower === 'zyv-corp' || lower === 'zyv' || lower === '001') return 'ten_zyvora_corp';
+    if (lower === 'hzk' || lower === 'hizaki' || lower === '004') return 'ten_hizaki_wedding';
+    if (lower === 'yul-hold' || lower === 'yulovi' || lower === '002') return 'ten_yulovi_holdings';
+    if (lower === 'pls-log' || lower === 'pls' || lower === '003') return 'ten_prima_logistik';
+    if (clean === 'ten_zyvora_corp' || clean === 'ten_hizaki_wedding' || clean === 'ten_yulovi_holdings' || clean === 'ten_prima_logistik') {
       return clean;
     }
     return CANONICAL_FALLBACK_TENANT_ID;
@@ -48,33 +49,132 @@ export class TenantMasterService {
   // ====================================================================
 
   static getDefaultCompanyProfile(tenantId: string, tenantCode = 'ZYV-CORP'): CompanyProfile {
+    const validTenantId = this.resolveTenantId(tenantId || tenantCode);
+
+    if (validTenantId === 'ten_hizaki_wedding' || tenantCode === 'HZK') {
+      return {
+        tenantId: 'ten_hizaki_wedding',
+        tenantCode: 'HZK',
+        legalName: 'Hizaki Wedding Planner',
+        brandName: 'Hizaki Wedding Planner',
+        logoUrl: undefined,
+        description: 'Layanan perencanaan pernikahan eksklusif, dekorasi tematik, dan manajemen acara profesional terpadu.',
+        businessEntity: 'PERORANGAN',
+        nib: '9120003456781',
+        npwp: '01.345.678.9-012.000',
+        email: 'corporate@hizaki.com',
+        phone: '+62 22 203 1234',
+        whatsapp: '+62 812 3456 7890',
+        website: 'https://hizakiwedding.com',
+        address: 'Gedung Menara Mandiri Lt. 18, Jl. Jend. Sudirman Kav. 54-55',
+        provinceId: '32',
+        provinceName: 'Jawa Barat',
+        regencyId: '3273',
+        regencyName: 'Kota Bandung',
+        districtId: '327307',
+        districtName: 'Sukajadi',
+        villageId: '3273071001',
+        villageName: 'Pasteur',
+        postalCode: '40161',
+        country: 'Indonesia',
+        latitude: -6.8909,
+        longitude: 107.5995,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    if (validTenantId === 'ten_yulovi_holdings' || tenantCode === 'YUL-HOLD') {
+      return {
+        tenantId: 'ten_yulovi_holdings',
+        tenantCode: 'YUL-HOLD',
+        legalName: 'PT Yulovi Niaga Nusantara',
+        brandName: 'Yulovi Holdings',
+        logoUrl: undefined,
+        description: 'Holding multi-sektor dan distribusi komoditas terintegrasi.',
+        businessEntity: 'PT',
+        nib: '9120003456782',
+        npwp: '01.345.678.9-013.000',
+        email: 'corporate@yulovi.com',
+        phone: '+62 21 5289 1100',
+        whatsapp: '+62 811 1234 5678',
+        website: 'https://yulovi.com',
+        address: 'Jl. Sudirman Kav. 54, Jakarta Selatan',
+        provinceId: '31',
+        provinceName: 'DKI Jakarta',
+        regencyId: '3171',
+        regencyName: 'Kota Jakarta Selatan',
+        districtId: '317101',
+        districtName: 'Kebayoran Baru',
+        villageId: '3171011001',
+        villageName: 'Senayan',
+        postalCode: '12190',
+        country: 'Indonesia',
+        latitude: -6.2255,
+        longitude: 106.8085,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    if (validTenantId === 'ten_prima_logistik' || tenantCode === 'PLS-LOG') {
+      return {
+        tenantId: 'ten_prima_logistik',
+        tenantCode: 'PLS-LOG',
+        legalName: 'PT Prima Logistik Sentosa',
+        brandName: 'Prima Logistik',
+        logoUrl: undefined,
+        description: 'Layanan logistik, ekspedisi dan pergudangan skala nasional.',
+        businessEntity: 'PT',
+        nib: '9120003456783',
+        npwp: '01.345.678.9-014.000',
+        email: 'ops@primalogistik.co.id',
+        phone: '+62 31 8432 1100',
+        whatsapp: '+62 813 9876 5432',
+        website: 'https://primalogistik.co.id',
+        address: 'Kawasan Industri Rungkut Blok B-12, Surabaya',
+        provinceId: '35',
+        provinceName: 'Jawa Timur',
+        regencyId: '3578',
+        regencyName: 'Kota Surabaya',
+        districtId: '357808',
+        districtName: 'Rungkut',
+        villageId: '3578081001',
+        villageName: 'Kali Rungkut',
+        postalCode: '60293',
+        country: 'Indonesia',
+        latitude: -7.3215,
+        longitude: 112.7685,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    // Default: Zyvora Global Enterprises
     return {
-      tenantId,
-      tenantCode,
-      legalName: 'PT Hizaki Kreasi Nusantara',
-      brandName: 'Hizaki Wedding Planner',
+      tenantId: tenantId || 'ten_zyvora_corp',
+      tenantCode: tenantCode || 'ZYV-CORP',
+      legalName: 'PT Zyvora Global Pratama',
+      brandName: 'Zyvora Global Enterprises',
       logoUrl: undefined,
-      description: 'Layanan perencanaan pernikahan eksklusif, dekorasi tematik, dan manajemen acara profesional terpadu.',
+      description: 'Perusahaan holding penyedia solusi integrasi rantai pasok terpadu dan perdagangan umum berskala nasional.',
       businessEntity: 'PT',
-      nib: '9120003456781',
+      nib: '9120003456780',
       npwp: '01.345.678.9-012.000',
-      email: 'corporate@hizaki.com',
-      phone: '+62 22 203 1234',
-      whatsapp: '+62 812 3456 7890',
-      website: 'https://hizakiwedding.com',
+      email: 'corporate@zyvora.com',
+      phone: '+62 21 5289 0000',
+      whatsapp: '+62 811 9876 5432',
+      website: 'https://www.zyvora.com',
       address: 'Gedung Menara Mandiri Lt. 18, Jl. Jend. Sudirman Kav. 54-55',
-      provinceId: '32',
-      provinceName: 'Jawa Barat',
-      regencyId: '3273',
-      regencyName: 'Kota Bandung',
-      districtId: '327307',
-      districtName: 'Sukajadi',
-      villageId: '3273071001',
-      villageName: 'Pasteur',
-      postalCode: '40161',
+      provinceId: '31',
+      provinceName: 'DKI Jakarta',
+      regencyId: '3171',
+      regencyName: 'Kota Jakarta Selatan',
+      districtId: '317101',
+      districtName: 'Kebayoran Baru',
+      villageId: '3171011001',
+      villageName: 'Senayan',
+      postalCode: '12190',
       country: 'Indonesia',
-      latitude: -6.8909,
-      longitude: 107.5995,
+      latitude: -6.2255,
+      longitude: 106.8085,
       updatedAt: new Date().toISOString()
     };
   }

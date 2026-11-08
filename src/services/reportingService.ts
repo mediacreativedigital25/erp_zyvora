@@ -20,6 +20,8 @@ import {
 import { TenantMasterService } from './tenantMasterService';
 import { ExpenseClaimService } from './expenseClaimService';
 import { CostAllocationService } from './costAllocationService';
+import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { mapRowToServiceBooking } from './supabaseSyncService';
 
 export interface CostRatioReportOptions {
   serviceBookings?: ServiceBookingOrder[];
@@ -114,6 +116,20 @@ export class ReportingService {
       try {
         const cached = localStorage.getItem('ZYVORA_SERVICE_BOOKINGS');
         if (cached) bookings = JSON.parse(cached);
+      } catch {}
+    }
+
+    if (!bookings && isSupabaseConfigured) {
+      try {
+        const client = getSupabaseClient();
+        let query = client.from('service_bookings').select('*, items:service_booking_items(*)');
+        if (tenantId !== 'ten_zyvora_corp') {
+          query = query.eq('tenant_id', tenantId);
+        }
+        const { data, error } = await query;
+        if (!error && Array.isArray(data) && data.length > 0) {
+          bookings = data.map(mapRowToServiceBooking);
+        }
       } catch {}
     }
 

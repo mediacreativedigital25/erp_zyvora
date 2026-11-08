@@ -1781,7 +1781,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCustomers((prev) =>
       prev.map((c) => {
         if (c.id === id) {
-          updatedCustomer = { ...c, ...data };
+          updatedCustomer = {
+            ...c,
+            ...data,
+            tenantId: sanitizeTenantId(data.tenantId || c.tenantId || tenant.id)
+          };
           return updatedCustomer;
         }
         return c;
@@ -2209,10 +2213,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: Omit<StockMovement, 'id' | 'tenantId' | 'movementNumber' | 'date' | 'createdBy'>
   ): StockMovement => {
     const movementNumber = generateSequenceNumber('MUT');
+    const safeTenantId = sanitizeTenantId(tenant.id);
     const newMovement: StockMovement = {
       ...data,
       id: `mut_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       movementNumber,
       date: new Date().toISOString(),
       createdBy: currentUser.fullName
@@ -2223,7 +2228,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -2243,10 +2248,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: Omit<JournalEntry, 'id' | 'tenantId' | 'entryNumber' | 'status' | 'postedBy' | 'postedAt'>
   ): JournalEntry => {
     const entryNumber = generateSequenceNumber('JV');
+    const safeTenantId = sanitizeTenantId(tenant.id);
     const newEntry: JournalEntry = {
       ...data,
       id: `jv_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       entryNumber,
       status: 'draft',
       postedBy: currentUser.fullName
@@ -2257,7 +2263,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
