@@ -13,27 +13,19 @@ import {
 } from '../types/erp';
 import { IndonesiaRegionService } from './indonesiaRegionService';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { assertValidTenantId } from './supabaseSyncService';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const CANONICAL_FALLBACK_TENANT_ID = 'ten_zyvora_corp';
 
 export class TenantMasterService {
   private static memoryProfiles = new Map<string, CompanyProfile>();
 
+  /**
+   * Strictly resolves and verifies tenant ID.
+   * Throws TenantContextError if tenant is missing, unassigned, or unrecognized (Fail-Closed).
+   */
   static resolveTenantId(tenantId?: string): string {
-    if (!tenantId || tenantId === '00000000-0000-4000-8000-000000000001' || tenantId === 'undefined' || tenantId === 'null') {
-      return CANONICAL_FALLBACK_TENANT_ID;
-    }
-    const clean = tenantId.trim();
-    const lower = clean.toLowerCase();
-    if (lower === 'zyv-corp' || lower === 'zyv' || lower === '001') return 'ten_zyvora_corp';
-    if (lower === 'hzk' || lower === 'hizaki' || lower === '004') return 'ten_hizaki_wedding';
-    if (lower === 'yul-hold' || lower === 'yulovi' || lower === '002') return 'ten_yulovi_holdings';
-    if (lower === 'pls-log' || lower === 'pls' || lower === '003') return 'ten_prima_logistik';
-    if (clean === 'ten_zyvora_corp' || clean === 'ten_hizaki_wedding' || clean === 'ten_yulovi_holdings' || clean === 'ten_prima_logistik') {
-      return clean;
-    }
-    return CANONICAL_FALLBACK_TENANT_ID;
+    return assertValidTenantId(tenantId);
   }
 
   /**

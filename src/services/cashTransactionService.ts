@@ -8,6 +8,7 @@ import { CashTransaction, ExpenseClaim } from '../types/erp';
 import { ExpenseClaimService } from './expenseClaimService';
 import { DocumentNumberingService } from './documentNumberingService';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { assertValidTenantId } from './supabaseSyncService';
 
 const LOCAL_STORAGE_KEY = 'ZYVORA_CASH_TRANSACTIONS';
 
@@ -59,14 +60,15 @@ export class CashTransactionService {
   /**
    * Reads all cash transactions from cloud server or local storage fallback
    */
-  static async getCashTransactions(tenantId = 'ten_zyvora_corp'): Promise<CashTransaction[]> {
+  static async getCashTransactions(tenantId: string): Promise<CashTransaction[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
         const { data, error } = await client
           .from('cash_transactions')
           .select('*')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('transaction_date', { ascending: false });
 
         if (!error && data && data.length > 0) {
@@ -115,8 +117,9 @@ export class CashTransactionService {
    * Retrieves approved claims that are eligible for cash disbursement
    * Only returns claims where status === 'approved' (excludes draft, submitted, paid, rejected)
    */
-  static async getApprovedClaimsForDisbursement(tenantId = 'ten_zyvora_corp'): Promise<ExpenseClaim[]> {
-    const allClaims = await ExpenseClaimService.getClaims(tenantId);
+  static async getApprovedClaimsForDisbursement(tenantId: string): Promise<ExpenseClaim[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const allClaims = await ExpenseClaimService.getClaims(safeTenantId);
     return allClaims.filter((claim) => claim.status === 'approved');
   }
 
@@ -126,15 +129,17 @@ export class CashTransactionService {
    */
   static async createCashTransaction(
     payload: Omit<CashTransaction, 'id' | 'transactionNumber' | 'createdAt'> & { transactionNumber?: string },
-    tenantId = 'ten_zyvora_corp',
+    tenantId: string,
     options?: { tenantCode?: string; branchSuffix?: string }
   ): Promise<CashTransaction> {
-    const list = await this.getCashTransactions(tenantId);
+    const safeTenantId = assertValidTenantId(payload.tenantId || tenantId);
+    const list = await this.getCashTransactions(safeTenantId);
     const txNumber = payload.transactionNumber || this.generateNextNumber(list, payload.type, payload.transactionDate, options);
 
     const newTx: CashTransaction = {
       ...payload,
       id: `csh_tx_${Date.now()}`,
+      tenantId: safeTenantId,
       transactionNumber: txNumber,
       createdAt: new Date().toISOString()
     };

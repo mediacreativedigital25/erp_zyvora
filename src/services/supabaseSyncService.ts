@@ -19,17 +19,24 @@ import {
 } from '../types/erp';
 
 // ====================================================================
-// TENANT & DATE SANITIZATION HELPERS (PostgreSQL Type Compliance)
+// TENANT & DATE SANITIZATION HELPERS (PostgreSQL Type Compliance & Fail-Closed)
 // ====================================================================
 
-const CANONICAL_TENANTS = new Set([
+export class TenantContextError extends Error {
+  constructor(message = 'ERR_TENANT_CONTEXT_INVALID: Operasi ditolak karena konteks tenant tidak valid atau tidak ditemukan.') {
+    super(message);
+    this.name = 'TenantContextError';
+  }
+}
+
+export const CANONICAL_TENANTS = new Set([
   'ten_zyvora_corp',
   'ten_hizaki_wedding',
   'ten_yulovi_holdings',
   'ten_prima_logistik'
 ]);
 
-const TENANT_ALIAS_MAP: Record<string, string> = {
+export const TENANT_ALIAS_MAP: Record<string, string> = {
   'zyv-corp': 'ten_zyvora_corp',
   'zyv': 'ten_zyvora_corp',
   'zyvora': 'ten_zyvora_corp',
@@ -58,27 +65,35 @@ const TENANT_ALIAS_MAP: Record<string, string> = {
 };
 
 /**
- * Safely normalizes tenant IDs to guarantee foreign key integrity against public.tenants.
+ * Strictly normalizes and verifies tenant IDs against public.tenants.
  * Whitelists valid database primary keys and alias mappings.
- * Strictly prevents unverified codes or arbitrary strings from triggering FK violations.
+ * Strictly FAIL-CLOSED: throws TenantContextError if tenant is missing, unassigned, or unrecognized.
+ * Never performs silent fallback to any default tenant.
  */
-export const sanitizeTenantId = (tid?: string | null): string => {
+export const assertValidTenantId = (tid?: string | null): string => {
   if (!tid || typeof tid !== 'string' || !tid.trim()) {
-    return 'ten_zyvora_corp';
+    throw new TenantContextError('ERR_TENANT_CONTEXT_INVALID: Tenant ID wajib diisi dan tidak boleh kosong.');
   }
   const clean = tid.trim();
   if (clean === '00000000-0000-4000-8000-000000000001' || clean === 'undefined' || clean === 'null') {
-    return 'ten_zyvora_corp';
+    throw new TenantContextError('ERR_TENANT_CONTEXT_INVALID: Identifier tenant default/dummy ditolak.');
   }
   const lower = clean.toLowerCase();
   if (TENANT_ALIAS_MAP[lower]) {
     return TENANT_ALIAS_MAP[lower];
   }
-  if (CANONICAL_TENANTS.has(clean)) {
-    return clean;
+  if (CANONICAL_TENANTS.has(clean) || /^ten_[a-z0-9_]{2,64}$/i.test(clean)) {
+    return clean.toLowerCase();
   }
-  // Safe canonical fallback to guarantee foreign key integrity against public.tenants
-  return 'ten_zyvora_corp';
+  throw new TenantContextError(`ERR_TENANT_CONTEXT_INVALID: Tenant ID [${clean}] tidak terdaftar dalam whitelist tenant resmi.`);
+};
+
+/**
+ * Alias of assertValidTenantId for backward compatibility.
+ * Strictly fail-closed: throws TenantContextError on missing/unrecognized tenant.
+ */
+export const sanitizeTenantId = (tid?: string | null): string => {
+  return assertValidTenantId(tid);
 };
 
 /**
@@ -199,24 +214,39 @@ export const syncCustomerToSupabase = async (c: Customer): Promise<{ success: bo
   }
 };
 
-export const deleteCustomerFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteCustomerFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('customers').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete customer error:', error.message);
-  } catch (err) {
+    let query = client.from('customers').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete customer error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete customer exception:', err);
+    return { success: false, error: err?.message || 'Delete customer failed' };
   }
 };
 
-export const fetchCustomersFromSupabase = async (tenantId?: string): Promise<Customer[]> => {
+export const fetchCustomersFromSupabase = async (
+  tenantId?: string,
+  isPlatformSuperAdmin = false
+): Promise<Customer[]> => {
   if (!isSupabaseConfigured) return [];
   try {
+    const isSuperAdminAll = isPlatformSuperAdmin && tenantId === 'all';
+    const targetTenantId = isSuperAdminAll ? 'all' : assertValidTenantId(tenantId);
     const client = getSupabaseClient();
     let query = client.from('customers').select('*');
-    if (tenantId && tenantId !== 'ten_zyvora_corp' && tenantId !== 'all') {
-      query = query.eq('tenant_id', tenantId);
+    if (targetTenantId !== 'all') {
+      query = query.eq('tenant_id', targetTenantId);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -432,26 +462,41 @@ export const syncServiceBookingToSupabase = async (b: ServiceBookingOrder): Prom
   }
 };
 
-export const deleteServiceBookingFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteServiceBookingFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('service_bookings').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete booking error:', error.message);
-  } catch (err) {
+    let query = client.from('service_bookings').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete booking error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete booking exception:', err);
+    return { success: false, error: err?.message || 'Delete booking failed' };
   }
 };
 
-export const fetchServiceBookingsFromSupabase = async (tenantId?: string): Promise<ServiceBookingOrder[]> => {
+export const fetchServiceBookingsFromSupabase = async (
+  tenantId?: string,
+  isPlatformSuperAdmin = false
+): Promise<ServiceBookingOrder[]> => {
   if (!isSupabaseConfigured) return [];
   try {
+    const isSuperAdminAll = isPlatformSuperAdmin && tenantId === 'all';
+    const targetTenantId = isSuperAdminAll ? 'all' : assertValidTenantId(tenantId);
     const client = getSupabaseClient();
     let query = client
       .from('service_bookings')
       .select('*, items:service_booking_items(*), milestones:service_booking_milestones(*)');
-    if (tenantId && tenantId !== 'ten_zyvora_corp' && tenantId !== 'all') {
-      query = query.eq('tenant_id', tenantId);
+    if (targetTenantId !== 'all') {
+      query = query.eq('tenant_id', targetTenantId);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -581,24 +626,39 @@ export const syncSalesOrderToSupabase = async (o: SalesOrder): Promise<{ success
   }
 };
 
-export const deleteSalesOrderFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteSalesOrderFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('sales_orders').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete sales order error:', error.message);
-  } catch (err) {
+    let query = client.from('sales_orders').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete sales order error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete sales order exception:', err);
+    return { success: false, error: err?.message || 'Delete sales order failed' };
   }
 };
 
-export const fetchSalesOrdersFromSupabase = async (tenantId?: string): Promise<SalesOrder[]> => {
+export const fetchSalesOrdersFromSupabase = async (
+  tenantId?: string,
+  isPlatformSuperAdmin = false
+): Promise<SalesOrder[]> => {
   if (!isSupabaseConfigured) return [];
   try {
+    const isSuperAdminAll = isPlatformSuperAdmin && tenantId === 'all';
+    const targetTenantId = isSuperAdminAll ? 'all' : assertValidTenantId(tenantId);
     const client = getSupabaseClient();
     let query = client.from('sales_orders').select('*, items:sales_order_items(*)');
-    if (tenantId && tenantId !== 'ten_zyvora_corp' && tenantId !== 'all') {
-      query = query.eq('tenant_id', tenantId);
+    if (targetTenantId !== 'all') {
+      query = query.eq('tenant_id', targetTenantId);
     }
     const { data, error } = await query.order('order_date', { ascending: false });
 
@@ -738,24 +798,39 @@ export const syncInvoiceToSupabase = async (inv: SalesInvoice): Promise<{ succes
   }
 };
 
-export const deleteInvoiceFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteInvoiceFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('sales_invoices').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete invoice error:', error.message);
-  } catch (err) {
+    let query = client.from('sales_invoices').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete invoice error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete invoice exception:', err);
+    return { success: false, error: err?.message || 'Delete invoice failed' };
   }
 };
 
-export const fetchInvoicesFromSupabase = async (tenantId?: string): Promise<SalesInvoice[]> => {
+export const fetchInvoicesFromSupabase = async (
+  tenantId?: string,
+  isPlatformSuperAdmin = false
+): Promise<SalesInvoice[]> => {
   if (!isSupabaseConfigured) return [];
   try {
+    const isSuperAdminAll = isPlatformSuperAdmin && tenantId === 'all';
+    const targetTenantId = isSuperAdminAll ? 'all' : assertValidTenantId(tenantId);
     const client = getSupabaseClient();
     let query = client.from('sales_invoices').select('*, items:sales_invoice_items(*)');
-    if (tenantId && tenantId !== 'ten_zyvora_corp' && tenantId !== 'all') {
-      query = query.eq('tenant_id', tenantId);
+    if (targetTenantId !== 'all') {
+      query = query.eq('tenant_id', targetTenantId);
     }
     const { data, error } = await query.order('invoice_date', { ascending: false });
 
@@ -869,13 +944,18 @@ export const syncReceivePaymentToSupabase = async (rp: ReceivePayment): Promise<
   }
 };
 
-export const fetchReceivePaymentsFromSupabase = async (tenantId?: string): Promise<ReceivePayment[]> => {
+export const fetchReceivePaymentsFromSupabase = async (
+  tenantId?: string,
+  isPlatformSuperAdmin = false
+): Promise<ReceivePayment[]> => {
   if (!isSupabaseConfigured) return [];
   try {
+    const isSuperAdminAll = isPlatformSuperAdmin && tenantId === 'all';
+    const targetTenantId = isSuperAdminAll ? 'all' : assertValidTenantId(tenantId);
     const client = getSupabaseClient();
     let query = client.from('receive_payments').select('*');
-    if (tenantId && tenantId !== 'ten_zyvora_corp' && tenantId !== 'all') {
-      query = query.eq('tenant_id', tenantId);
+    if (targetTenantId !== 'all') {
+      query = query.eq('tenant_id', targetTenantId);
     }
     const { data, error } = await query.order('payment_date', { ascending: false });
 
@@ -936,26 +1016,41 @@ export const mapRowToProduct = (row: any): Product => ({
   businessLineId: row.business_line_id
 });
 
-export const syncProductToSupabase = async (p: Product): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const syncProductToSupabase = async (p: Product): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
   try {
     const client = getSupabaseClient();
     const row = mapProductToRow(p);
     const { error } = await client.from('products').upsert(row);
-    if (error) console.warn('[Supabase Sync] Upsert product error:', error.message);
-  } catch (err) {
+    if (error) {
+      console.warn('[Supabase Sync] Upsert product error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Product sync exception:', err);
+    return { success: false, error: err?.message || 'Product sync exception' };
   }
 };
 
-export const deleteProductFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteProductFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('products').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete product error:', error.message);
-  } catch (err) {
+    let query = client.from('products').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete product error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete product exception:', err);
+    return { success: false, error: err?.message || 'Delete product exception' };
   }
 };
 
@@ -1016,26 +1111,41 @@ export const mapRowToVendor = (row: any): Vendor => ({
   country: row.country || 'Indonesia'
 });
 
-export const syncVendorToSupabase = async (v: Vendor): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const syncVendorToSupabase = async (v: Vendor): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
   try {
     const client = getSupabaseClient();
     const row = mapVendorToRow(v);
     const { error } = await client.from('vendors').upsert(row);
-    if (error) console.warn('[Supabase Sync] Upsert vendor error:', error.message);
-  } catch (err) {
+    if (error) {
+      console.warn('[Supabase Sync] Upsert vendor error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Vendor sync exception:', err);
+    return { success: false, error: err?.message || 'Vendor sync exception' };
   }
 };
 
-export const deleteVendorFromSupabase = async (id: string): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const deleteVendorFromSupabase = async (id: string, tenantId?: string): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: false, error: 'Database Supabase tidak terkonfigurasi' };
   try {
     const client = getSupabaseClient();
-    const { error } = await client.from('vendors').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync] Delete vendor error:', error.message);
-  } catch (err) {
+    let query = client.from('vendors').delete().eq('id', id);
+    if (tenantId) {
+      const validTenant = assertValidTenantId(tenantId);
+      query = query.eq('tenant_id', validTenant);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('[Supabase Sync] Delete vendor error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Delete vendor exception:', err);
+    return { success: false, error: err?.message || 'Delete vendor exception' };
   }
 };
 
@@ -1315,8 +1425,8 @@ export const fetchJournalEntriesFromSupabase = async (tenantId: string): Promise
 // 11. AUDIT LOGS SYNC
 // ====================================================================
 
-export const syncAuditLogToSupabase = async (a: AuditLog): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const syncAuditLogToSupabase = async (a: AuditLog): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
   try {
     const client = getSupabaseClient();
     const row = {
@@ -1334,9 +1444,12 @@ export const syncAuditLogToSupabase = async (a: AuditLog): Promise<void> => {
     const { error } = await client.from('audit_logs').insert(row);
     if (error) {
       console.warn('[Supabase Sync] Insert audit log notice:', error.message);
+      return { success: false, error: error.message };
     }
-  } catch (err) {
+    return { success: true };
+  } catch (err: any) {
     console.warn('[Supabase Sync] Audit log sync exception:', err);
+    return { success: false, error: err?.message || 'Audit log sync exception' };
   }
 };
 

@@ -4,6 +4,7 @@
  */
 
 import { Department, Position } from '../types/erp';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_DEPARTMENTS: Department[] = [
   {
@@ -174,22 +175,25 @@ export class DepartmentPositionService {
   // ----------------------------------------------------
   // DEPARTMENTS
   // ----------------------------------------------------
-  static async getDepartments(tenantId = 'ten_zyvora_corp'): Promise<Department[]> {
+  static async getDepartments(tenantId: string): Promise<Department[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem(LOCAL_STORAGE_DEP_KEY);
         if (cached) {
           const parsed: Department[] = JSON.parse(cached);
-          return parsed.filter((d) => !tenantId || d.tenantId === tenantId);
+          return parsed.filter((d) => d.tenantId === safeTenantId);
         }
         localStorage.setItem(LOCAL_STORAGE_DEP_KEY, JSON.stringify(INITIAL_DEPARTMENTS));
       } catch {}
     }
-    return INITIAL_DEPARTMENTS.filter((d) => !tenantId || d.tenantId === tenantId);
+    return INITIAL_DEPARTMENTS.filter((d) => d.tenantId === safeTenantId);
   }
 
   static async saveDepartment(dept: Department): Promise<Department> {
-    const list = await this.getDepartments(dept.tenantId);
+    const safeTenantId = assertValidTenantId(dept.tenantId);
+    dept.tenantId = safeTenantId;
+    const list = await this.getDepartments(safeTenantId);
     let saved: Department;
     const idx = list.findIndex((d) => d.id === dept.id);
 
@@ -197,12 +201,14 @@ export class DepartmentPositionService {
       saved = {
         ...list[idx],
         ...dept,
+        tenantId: safeTenantId,
         updatedAt: new Date().toISOString()
       };
       list[idx] = saved;
     } else {
       saved = {
         ...dept,
+        tenantId: safeTenantId,
         id: dept.id || `dept_${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -219,8 +225,9 @@ export class DepartmentPositionService {
     return saved;
   }
 
-  static async deleteDepartment(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getDepartments(tenantId);
+  static async deleteDepartment(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getDepartments(safeTenantId);
     const filtered = list.filter((d) => d.id !== id);
     if (typeof window !== 'undefined') {
       try {
@@ -233,22 +240,25 @@ export class DepartmentPositionService {
   // ----------------------------------------------------
   // POSITIONS
   // ----------------------------------------------------
-  static async getPositions(tenantId = 'ten_zyvora_corp'): Promise<Position[]> {
+  static async getPositions(tenantId: string): Promise<Position[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem(LOCAL_STORAGE_POS_KEY);
         if (cached) {
           const parsed: Position[] = JSON.parse(cached);
-          return parsed.filter((p) => !tenantId || p.tenantId === tenantId);
+          return parsed.filter((p) => p.tenantId === safeTenantId);
         }
         localStorage.setItem(LOCAL_STORAGE_POS_KEY, JSON.stringify(INITIAL_POSITIONS));
       } catch {}
     }
-    return INITIAL_POSITIONS.filter((p) => !tenantId || p.tenantId === tenantId);
+    return INITIAL_POSITIONS.filter((p) => p.tenantId === safeTenantId);
   }
 
   static async savePosition(pos: Position): Promise<Position> {
-    const list = await this.getPositions(pos.tenantId);
+    const safeTenantId = assertValidTenantId(pos.tenantId);
+    pos.tenantId = safeTenantId;
+    const list = await this.getPositions(safeTenantId);
     let saved: Position;
     const idx = list.findIndex((p) => p.id === pos.id);
 
@@ -256,12 +266,14 @@ export class DepartmentPositionService {
       saved = {
         ...list[idx],
         ...pos,
+        tenantId: safeTenantId,
         updatedAt: new Date().toISOString()
       };
       list[idx] = saved;
     } else {
       saved = {
         ...pos,
+        tenantId: safeTenantId,
         id: pos.id || `pos_${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -278,8 +290,9 @@ export class DepartmentPositionService {
     return saved;
   }
 
-  static async deletePosition(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getPositions(tenantId);
+  static async deletePosition(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getPositions(safeTenantId);
     const filtered = list.filter((p) => p.id !== id);
     if (typeof window !== 'undefined') {
       try {

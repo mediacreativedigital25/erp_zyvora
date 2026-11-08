@@ -28,7 +28,7 @@ import { CompanyVehicle } from '../../types/erp';
 import { VehicleMasterService, VehicleTaxAlert } from '../../services/vehicleMasterService';
 
 export const VehiclesMasterView: React.FC = () => {
-  const { branches, marketProfile, currentUser, addToast } = useErp();
+  const { branches, marketProfile, currentUser, addToast, tenant } = useErp();
   const { confirm: systemConfirm } = useConfirm();
   const businessLines = useMemo(() => marketProfile.businessLines || [], [marketProfile]);
 
@@ -68,7 +68,7 @@ export const VehiclesMasterView: React.FC = () => {
   const loadVehicles = async () => {
     setIsLoading(true);
     try {
-      const list = await VehicleMasterService.getVehicles();
+      const list = await VehicleMasterService.getVehicles(tenant.id);
       setVehicles(list);
     } catch (err) {
       console.warn('Failed to load vehicles:', err);
@@ -79,7 +79,7 @@ export const VehiclesMasterView: React.FC = () => {
 
   useEffect(() => {
     loadVehicles();
-  }, []);
+  }, [tenant.id]);
 
   const openAddModal = () => {
     setEditingVehicle(null);
@@ -140,6 +140,7 @@ export const VehiclesMasterView: React.FC = () => {
     try {
       await VehicleMasterService.saveVehicle({
         id: editingVehicle?.id,
+        tenantId: tenant.id,
         licensePlate: cleanPlate,
         brandModel: brandModel.trim(),
         vehicleType,
@@ -152,7 +153,7 @@ export const VehiclesMasterView: React.FC = () => {
         plateExpiryDate: plateExpiryDate || undefined,
         isActive: status,
         notes: notes.trim() || undefined
-      });
+      }, tenant.id);
 
       addToast(
         'Vehicle Saved',
@@ -183,7 +184,7 @@ export const VehiclesMasterView: React.FC = () => {
 
     if (!isConfirmed) return;
 
-    await VehicleMasterService.deleteVehicle(v.id);
+    await VehicleMasterService.deleteVehicle(v.id, tenant.id);
     addToast('Vehicle Deleted', `Kendaraan ${v.licensePlate} berhasil dihapus.`, 'info');
     loadVehicles();
   };

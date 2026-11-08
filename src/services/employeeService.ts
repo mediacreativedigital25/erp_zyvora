@@ -6,6 +6,7 @@
 
 import { Employee } from '../types/erp';
 import { isSupabaseConfigured, getSupabaseClient } from './supabaseClient';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_CORE_EMPLOYEES: Employee[] = [
   {
@@ -486,7 +487,8 @@ export class EmployeeService {
   /**
    * Reads all employees for a specific tenant (Supabase Cloud with local fallback)
    */
-  static async getEmployees(tenantId = 'ten_zyvora_corp'): Promise<Employee[]> {
+  static async getEmployees(tenantId: string): Promise<Employee[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     // 1. Try fetching live from Supabase Cloud
     if (isSupabaseConfigured) {
       try {
@@ -494,7 +496,7 @@ export class EmployeeService {
         const { data, error } = await client
           .from('employees')
           .select('*')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data) && data.length > 0) {
@@ -530,25 +532,25 @@ export class EmployeeService {
               }
               return {
                 ...e,
-                businessLineId: `lob_${e.tenantId || tenantId}_holding`,
+                businessLineId: `lob_${e.tenantId || safeTenantId}_holding`,
                 businessLineName: 'Holding / Shared Services',
                 costCenterCode: e.costCenterCode || 'CC-SHARED-HOLDING'
               };
             }
             return e;
           });
-          return enhanced.filter((e) => !tenantId || e.tenantId === tenantId);
+          return enhanced.filter((e) => !safeTenantId || e.tenantId === safeTenantId);
         }
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_CORE_EMPLOYEES));
       } catch {}
     }
-    return INITIAL_CORE_EMPLOYEES.filter((e) => !tenantId || e.tenantId === tenantId);
+    return INITIAL_CORE_EMPLOYEES.filter((e) => !safeTenantId || e.tenantId === safeTenantId);
   }
 
   /**
    * Reads single employee by ID
    */
-  static async getEmployeeById(id: string, tenantId = 'ten_zyvora_corp'): Promise<Employee | null> {
+  static async getEmployeeById(id: string, tenantId: string): Promise<Employee | null> {
     const list = await this.getEmployees(tenantId);
     return list.find((e) => e.id === id) || null;
   }
@@ -560,7 +562,9 @@ export class EmployeeService {
     emp: Employee,
     optionsOrTenantCode?: string | { tenantCode?: string; branchSuffix?: string; targetDate?: string }
   ): Promise<Employee> {
-    const list = await this.getEmployees(emp.tenantId);
+    const safeTenantId = assertValidTenantId(emp.tenantId);
+    emp.tenantId = safeTenantId;
+    const list = await this.getEmployees(safeTenantId);
     let finalEmp: Employee;
     const idx = list.findIndex((e) => e.id === emp.id);
 
@@ -574,7 +578,7 @@ export class EmployeeService {
 
     // Default business line to Holding if empty
     if (!emp.businessLineId) {
-      emp.businessLineId = `lob_${emp.tenantId || 'ten_zyvora_corp'}_holding`;
+      emp.businessLineId = `lob_${safeTenantId}_holding`;
       emp.businessLineName = emp.businessLineName || 'Holding / Shared Services';
     }
 
@@ -627,14 +631,15 @@ export class EmployeeService {
   /**
    * Deletes an employee (removes from Supabase Cloud and local cache)
    */
-  static async deleteEmployee(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getEmployees(tenantId);
+  static async deleteEmployee(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getEmployees(safeTenantId);
     const filtered = list.filter((e) => e.id !== id);
 
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        const { error } = await client.from('employees').delete().eq('id', id).eq('tenant_id', tenantId);
+        const { error } = await client.from('employees').delete().eq('id', id).eq('tenant_id', safeTenantId);
         if (error) {
           console.warn('[EmployeeService] Cloud delete notice:', error.message);
         }

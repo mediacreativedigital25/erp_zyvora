@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Car, Fuel, Gauge, Calendar, Check, AlertCircle } from 'lucide-react';
 import { CompanyVehicle } from '../../types/erp';
 import { VehicleMasterService } from '../../services/vehicleMasterService';
+import { useErp } from '../../context/ErpContext';
 
 interface VehicleActivityModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const VehicleActivityModal: React.FC<VehicleActivityModalProps> = ({
   initialData,
   onSave
 }) => {
+  const { tenant } = useErp();
   const [vehicles, setVehicles] = useState<CompanyVehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [odometerKm, setOdometerKm] = useState<string>('');
@@ -63,7 +65,7 @@ export const VehicleActivityModal: React.FC<VehicleActivityModalProps> = ({
     }
     setErrorMessage(null);
 
-    VehicleMasterService.getVehicles().then((list) => {
+    VehicleMasterService.getVehicles(tenant.id).then((list) => {
       setVehicles(list);
       if (initialData?.vehicleId) {
         const defaultVeh = list.find((v) => v.id === initialData.vehicleId);

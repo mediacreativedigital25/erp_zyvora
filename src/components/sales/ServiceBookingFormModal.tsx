@@ -484,7 +484,7 @@ export const ServiceBookingFormModal: React.FC<ServiceBookingFormModalProps> = (
   };
 
   // Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -527,11 +527,11 @@ export const ServiceBookingFormModal: React.FC<ServiceBookingFormModalProps> = (
       };
 
       if (isEditing && initialBooking) {
-        const updated = updateServiceBooking(initialBooking.id, payload);
+        const updated = await updateServiceBooking(initialBooking.id, payload);
         addToast('Booking Updated', `Service booking order '${updated.bookingNumber}' updated successfully.`, 'success');
         if (onSuccess) onSuccess(updated);
       } else {
-        const created = createServiceBooking({
+        const created = await createServiceBooking({
           preferredBookingNumber: bookingNumber,
           ...payload
         });

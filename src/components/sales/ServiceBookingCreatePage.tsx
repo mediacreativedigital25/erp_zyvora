@@ -793,7 +793,7 @@ export const ServiceBookingCreatePage: React.FC<ServiceBookingCreatePageProps> =
   // Submit Handler
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validations
@@ -919,7 +919,7 @@ export const ServiceBookingCreatePage: React.FC<ServiceBookingCreatePageProps> =
       };
 
       if (isEditing && initialBooking) {
-        const updated = updateServiceBooking(initialBooking.id, payload);
+        const updated = await updateServiceBooking(initialBooking.id, payload);
         addToast(
           'Sales Order Updated',
           `Sales Order [${bookingNumber}] has been saved successfully.`,
@@ -927,7 +927,7 @@ export const ServiceBookingCreatePage: React.FC<ServiceBookingCreatePageProps> =
         );
         onSuccess(updated);
       } else {
-        const created = createServiceBooking({
+        const created = await createServiceBooking({
           ...payload,
           preferredBookingNumber: bookingNumber
         } as any);

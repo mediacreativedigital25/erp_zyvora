@@ -5,6 +5,7 @@
 
 import { CompanyVehicle } from '../types/erp';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_COMPANY_VEHICLES: CompanyVehicle[] = [
   {
@@ -116,14 +117,15 @@ export class VehicleMasterService {
   /**
    * Mengambil seluruh data armada kendaraan aktif
    */
-  static async getVehicles(tenantId = 'ten_zyvora_corp'): Promise<CompanyVehicle[]> {
+  static async getVehicles(tenantId: string): Promise<CompanyVehicle[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
         const { data, error } = await client
           .from('company_vehicles')
           .select('*')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('license_plate', { ascending: true });
 
         if (!error && data && data.length > 0) {
@@ -166,8 +168,9 @@ export class VehicleMasterService {
   /**
    * Menyimpan / memperbarui armada kendaraan
    */
-  static async saveVehicle(vehicle: Partial<CompanyVehicle>, tenantId = 'ten_zyvora_corp'): Promise<CompanyVehicle> {
-    const existingList = await this.getVehicles(tenantId);
+  static async saveVehicle(vehicle: Partial<CompanyVehicle>, tenantId: string): Promise<CompanyVehicle> {
+    const safeTenantId = assertValidTenantId(vehicle.tenantId || tenantId);
+    const existingList = await this.getVehicles(safeTenantId);
     let updatedVehicle: CompanyVehicle;
 
     if (vehicle.id) {
@@ -176,6 +179,7 @@ export class VehicleMasterService {
         updatedVehicle = {
           ...existingList[idx],
           ...vehicle,
+          tenantId: safeTenantId,
           currentOdometerKm: Number(vehicle.currentOdometerKm ?? existingList[idx].currentOdometerKm)
         } as CompanyVehicle;
         existingList[idx] = updatedVehicle;
@@ -183,7 +187,7 @@ export class VehicleMasterService {
         updatedVehicle = {
           ...vehicle,
           id: vehicle.id,
-          tenantId,
+          tenantId: safeTenantId,
           isActive: vehicle.isActive ?? true
         } as CompanyVehicle;
         existingList.push(updatedVehicle);
@@ -191,7 +195,7 @@ export class VehicleMasterService {
     } else {
       updatedVehicle = {
         id: `veh_${Date.now()}`,
-        tenantId,
+        tenantId: safeTenantId,
         licensePlate: (vehicle.licensePlate || '').toUpperCase().trim(),
         brandModel: vehicle.brandModel || 'Operational Vehicle',
         vehicleType: vehicle.vehicleType || 'car',
@@ -214,7 +218,7 @@ export class VehicleMasterService {
         const client = getSupabaseClient();
         await client.from('company_vehicles').upsert({
           id: updatedVehicle.id,
-          tenant_id: tenantId,
+          tenant_id: safeTenantId,
           license_plate: updatedVehicle.licensePlate,
           brand_model: updatedVehicle.brandModel,
           vehicle_type: updatedVehicle.vehicleType,
@@ -247,14 +251,15 @@ export class VehicleMasterService {
   /**
    * Menghapus armada kendaraan
    */
-  static async deleteVehicle(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const existingList = await this.getVehicles(tenantId);
+  static async deleteVehicle(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const existingList = await this.getVehicles(safeTenantId);
     const filtered = existingList.filter((v) => v.id !== id);
 
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        await client.from('company_vehicles').delete().eq('id', id).eq('tenant_id', tenantId);
+        await client.from('company_vehicles').delete().eq('id', id).eq('tenant_id', safeTenantId);
       } catch (err) {
         console.warn('Failed to delete vehicle from server:', err);
       }
@@ -272,12 +277,13 @@ export class VehicleMasterService {
   /**
    * Memperbarui posisi odometer / KM setelah pengisian BBM
    */
-  static async updateOdometer(vehicleId: string, newKm: number, tenantId = 'ten_zyvora_corp'): Promise<void> {
-    const list = await this.getVehicles(tenantId);
+  static async updateOdometer(vehicleId: string, newKm: number, tenantId: string): Promise<void> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getVehicles(safeTenantId);
     const target = list.find((v) => v.id === vehicleId);
     if (target && newKm > target.currentOdometerKm) {
       target.currentOdometerKm = newKm;
-      await this.saveVehicle(target, tenantId);
+      await this.saveVehicle(target, safeTenantId);
     }
   }
 }

@@ -86,7 +86,7 @@ export const ServiceScheduleBookingView: React.FC = () => {
       try {
         const [empList, vehList] = await Promise.all([
           EmployeeService.getEmployees(tenant.id),
-          VehicleMasterService.getVehicles()
+          VehicleMasterService.getVehicles(tenant.id)
         ]);
         setEmployees(empList);
         setVehicles(vehList);
@@ -213,7 +213,7 @@ export const ServiceScheduleBookingView: React.FC = () => {
     }
   };
 
-  const handleConfirmQueueAdd = () => {
+  const handleConfirmQueueAdd = async () => {
     if (!selectedQueueBooking) {
       addToast('No Order Selected', 'Please select an order from the picking queue.', 'warning');
       return;
@@ -221,28 +221,32 @@ export const ServiceScheduleBookingView: React.FC = () => {
 
     const matchedVeh = vehicles.find((v) => v.licensePlate === queueVehiclePlate);
 
-    const updated = updateServiceBooking(selectedQueueBooking.id, {
-      status: 'picked',
-      pickingDate: pickingDate || SYSTEM_TODAY,
-      deliveryOrderNumber: pickingDoNumber || `DO01${SYSTEM_TODAY.replace(/-/g, '').slice(0, 6)}0001`,
-      assignedCrewLeadName: queueCrewLead || selectedQueueBooking.assignedCrewLeadName || employees[0]?.fullName,
-      assignedCrewCount: selectedQueueBooking.assignedCrewCount || 3,
-      assignedVehiclePlate: queueVehiclePlate || selectedQueueBooking.assignedVehiclePlate || vehicles[0]?.licensePlate,
-      assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
-      notes: queueNotes || selectedQueueBooking.notes
-    });
+    try {
+      const updated = await updateServiceBooking(selectedQueueBooking.id, {
+        status: 'picked',
+        pickingDate: pickingDate || SYSTEM_TODAY,
+        deliveryOrderNumber: pickingDoNumber || `DO01${SYSTEM_TODAY.replace(/-/g, '').slice(0, 6)}0001`,
+        assignedCrewLeadName: queueCrewLead || selectedQueueBooking.assignedCrewLeadName || employees[0]?.fullName,
+        assignedCrewCount: selectedQueueBooking.assignedCrewCount || 3,
+        assignedVehiclePlate: queueVehiclePlate || selectedQueueBooking.assignedVehiclePlate || vehicles[0]?.licensePlate,
+        assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
+        notes: queueNotes || selectedQueueBooking.notes
+      });
 
-    if (updated) {
-      addToast(
-        'Added to Schedule',
-        `Order ${selectedQueueBooking.bookingNumber} (${selectedQueueBooking.customerName}) verified from picking queue and added to active schedule.`,
-        'success'
-      );
+      if (updated) {
+        addToast(
+          'Added to Schedule',
+          `Order ${selectedQueueBooking.bookingNumber} (${selectedQueueBooking.customerName}) verified from picking queue and added to active schedule.`,
+          'success'
+        );
+      }
+      setIsAddModalOpen(false);
+    } catch (err: any) {
+      addToast('Error Updating Booking', err.message || 'Failed to update booking', 'error');
     }
-    setIsAddModalOpen(false);
   };
 
-  const handleConfirmDirectAdd = () => {
+  const handleConfirmDirectAdd = async () => {
     if (!directCustName.trim()) {
       addToast('Validation Warning', 'Customer name is required.', 'warning');
       return;
@@ -259,58 +263,62 @@ export const ServiceScheduleBookingView: React.FC = () => {
     const matchedBranch = branches.find((b) => b.id === directBranchId) || branches[0];
     const matchedVeh = vehicles.find((v) => v.licensePlate === directVehiclePlate);
 
-    const newBooking = createServiceBooking({
-      bookingDate: SYSTEM_TODAY,
-      customerId: `cust_direct_${Date.now()}`,
-      customerCode: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-      customerName: directCustName.trim(),
-      customerPhone: directCustPhone.trim() || '0812-0000-0000',
-      eventTitle: directEventTitle.trim(),
-      eventDate: directEventDate || SYSTEM_TODAY,
-      eventSession: directSession,
-      venueName: directVenueName.trim(),
-      venueAddress: directVenueAddress.trim(),
-      venueCity: matchedBranch?.city || 'Jakarta',
-      items: [
-        {
-          id: `item_${Date.now()}`,
-          businessLineId: directBusinessLine,
-          businessLineName: directBusinessLine,
-          costCenterCode: `CC-${directBusinessLine}`,
-          serviceName: `${directBusinessLine} Service Delivery`,
-          quantity: 1,
-          uom: 'Package',
-          unitPrice: 15000000,
-          discount: 0,
-          subtotal: 15000000
-        }
-      ],
-      milestones: [],
-      subtotal: 15000000,
-      discountTotal: 0,
-      taxAmount: 1650000,
-      totalAmount: 16650000,
-      paidAmount: 16650000,
-      outstandingBalance: 0,
-      status: 'picked', // Passed picking gate!
-      salesPicName: currentUser.fullName,
-      pickingDate: SYSTEM_TODAY,
-      branchId: matchedBranch?.id,
-      branchCode: matchedBranch?.code,
-      branchName: matchedBranch?.name,
-      assignedCrewLeadName: directCrewLead || employees[0]?.fullName,
-      assignedCrewCount: 3,
-      assignedVehiclePlate: directVehiclePlate || vehicles[0]?.licensePlate,
-      assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
-      notes: directNotes.trim()
-    });
+    try {
+      const newBooking = await createServiceBooking({
+        bookingDate: SYSTEM_TODAY,
+        customerId: `cust_direct_${Date.now()}`,
+        customerCode: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+        customerName: directCustName.trim(),
+        customerPhone: directCustPhone.trim() || '0812-0000-0000',
+        eventTitle: directEventTitle.trim(),
+        eventDate: directEventDate || SYSTEM_TODAY,
+        eventSession: directSession,
+        venueName: directVenueName.trim(),
+        venueAddress: directVenueAddress.trim(),
+        venueCity: matchedBranch?.city || 'Jakarta',
+        items: [
+          {
+            id: `item_${Date.now()}`,
+            businessLineId: directBusinessLine,
+            businessLineName: directBusinessLine,
+            costCenterCode: `CC-${directBusinessLine}`,
+            serviceName: `${directBusinessLine} Service Delivery`,
+            quantity: 1,
+            uom: 'Package',
+            unitPrice: 15000000,
+            discount: 0,
+            subtotal: 15000000
+          }
+        ],
+        milestones: [],
+        subtotal: 15000000,
+        discountTotal: 0,
+        taxAmount: 1650000,
+        totalAmount: 16650000,
+        paidAmount: 16650000,
+        outstandingBalance: 0,
+        status: 'picked', // Passed picking gate!
+        salesPicName: currentUser.fullName,
+        pickingDate: SYSTEM_TODAY,
+        branchId: matchedBranch?.id,
+        branchCode: matchedBranch?.code,
+        branchName: matchedBranch?.name,
+        assignedCrewLeadName: directCrewLead || employees[0]?.fullName,
+        assignedCrewCount: 3,
+        assignedVehiclePlate: directVehiclePlate || vehicles[0]?.licensePlate,
+        assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
+        notes: directNotes.trim()
+      });
 
-    addToast(
-      'Schedule Created',
-      `Booking ${newBooking.bookingNumber} added directly to active schedule as Picked.`,
-      'success'
-    );
-    setIsAddModalOpen(false);
+      addToast(
+        'Schedule Created',
+        `Booking ${newBooking.bookingNumber} added directly to active schedule as Picked.`,
+        'success'
+      );
+      setIsAddModalOpen(false);
+    } catch (err: any) {
+      addToast('Error Creating Booking', err.message || 'Failed to create booking', 'error');
+    }
   };
 
   // Dispatch Form States
@@ -325,26 +333,30 @@ export const ServiceScheduleBookingView: React.FC = () => {
     setDispatchNotes(b.notes || '');
   };
 
-  const handleSaveDispatch = () => {
+  const handleSaveDispatch = async () => {
     if (!dispatchTarget) return;
 
     const matchedVeh = vehicles.find((v) => v.licensePlate === dispatchVehiclePlate);
-    const updated = updateServiceBooking(dispatchTarget.id, {
-      assignedCrewLeadName: dispatchLeadName,
-      assignedCrewCount: dispatchTarget.assignedCrewCount || 3,
-      assignedVehiclePlate: dispatchVehiclePlate,
-      assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
-      notes: dispatchNotes
-    });
+    try {
+      const updated = await updateServiceBooking(dispatchTarget.id, {
+        assignedCrewLeadName: dispatchLeadName,
+        assignedCrewCount: dispatchTarget.assignedCrewCount || 3,
+        assignedVehiclePlate: dispatchVehiclePlate,
+        assignedVehicleModel: matchedVeh ? matchedVeh.brandModel : 'Operational Car',
+        notes: dispatchNotes
+      });
 
-    if (updated) {
-      addToast(
-        'Dispatch Assigned',
-        `Crew Lead [${dispatchLeadName}] & Fleet [${dispatchVehiclePlate}] assigned to ${dispatchTarget.bookingNumber}.`,
-        'success'
-      );
+      if (updated) {
+        addToast(
+          'Dispatch Assigned',
+          `Crew Lead [${dispatchLeadName}] & Fleet [${dispatchVehiclePlate}] assigned to ${dispatchTarget.bookingNumber}.`,
+          'success'
+        );
+      }
+      setDispatchTarget(null);
+    } catch (err: any) {
+      addToast('Error Assigning Dispatch', err.message || 'Failed to assign dispatch', 'error');
     }
-    setDispatchTarget(null);
   };
 
   const handleResetFilters = () => {

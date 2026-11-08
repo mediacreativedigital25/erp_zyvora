@@ -23,6 +23,7 @@ import { VehicleMasterService } from '../../services/vehicleMasterService';
 import { ExpenseClaimService } from '../../services/expenseClaimService';
 import { ClaimSettingsService } from '../../services/claimSettingsService';
 import { EmployeeService } from '../../services/employeeService';
+import { useErp } from '../../context/ErpContext';
 
 interface AddDetailExpenseModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export const AddDetailExpenseModal: React.FC<AddDetailExpenseModalProps> = ({
   branches,
   employees
 }) => {
+  const { tenant } = useErp();
   const [vehicles, setVehicles] = useState<CompanyVehicle[]>([]);
   const [categoriesList, setCategoriesList] = useState<ClaimExpenseCategory[]>([]);
   const [activitiesList, setActivitiesList] = useState<ClaimExpenseActivity[]>([]);
@@ -52,9 +54,9 @@ export const AddDetailExpenseModal: React.FC<AddDetailExpenseModalProps> = ({
     if (employees && employees.length > 0) {
       setEmployeesList(employees);
     } else {
-      EmployeeService.getEmployees().then(setEmployeesList);
+      EmployeeService.getEmployees(tenant.id).then(setEmployeesList);
     }
-  }, [employees]);
+  }, [employees, tenant.id]);
 
   // Form states - All initialized to blank / unselected by default
   const [orderByType, setOrderByType] = useState<ExpenseClaimOrderByType | ''>('');
@@ -139,7 +141,7 @@ export const AddDetailExpenseModal: React.FC<AddDetailExpenseModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    VehicleMasterService.getVehicles().then((list) => {
+    VehicleMasterService.getVehicles(tenant.id).then((list) => {
       setVehicles(list);
       if (initialData?.vehicleId) {
         const found = list.find((v) => v.id === initialData.vehicleId);
@@ -154,8 +156,8 @@ export const AddDetailExpenseModal: React.FC<AddDetailExpenseModalProps> = ({
     });
 
     Promise.all([
-      ClaimSettingsService.getCategories(),
-      ClaimSettingsService.getActivities()
+      ClaimSettingsService.getCategories(tenant.id),
+      ClaimSettingsService.getActivities(tenant.id)
     ]).then(([cats, acts]) => {
       setCategoriesList(cats);
       setActivitiesList(acts);

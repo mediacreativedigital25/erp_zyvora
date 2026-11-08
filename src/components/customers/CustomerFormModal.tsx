@@ -407,13 +407,13 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
 
       if (isEditing && activeCustomer) {
         // Update existing customer
-        const updated = updateCustomer(activeCustomer.id, customerPayload);
+        const updated = await updateCustomer(activeCustomer.id, customerPayload);
 
         addToast('Customer Updated', `Customer record '${updated.name}' updated successfully.`, 'success');
         if (onSuccess) onSuccess(updated);
       } else {
         // Register new customer
-        const created = createCustomer({
+        const created = await createCustomer({
           preferredCode: customerCode,
           ...customerPayload
         });

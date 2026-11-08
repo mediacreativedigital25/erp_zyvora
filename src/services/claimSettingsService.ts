@@ -5,6 +5,7 @@
 
 import { ClaimExpenseCategory, ClaimExpenseActivity } from '../types/erp';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_CLAIM_CATEGORIES: ClaimExpenseCategory[] = [
   {
@@ -106,14 +107,15 @@ export class ClaimSettingsService {
   // 1. KATEGORI KLAIM BIAYA (CLAIM EXPENSE CATEGORIES)
   // ====================================================================
 
-  static async getCategories(tenantId = 'ten_zyvora_corp'): Promise<ClaimExpenseCategory[]> {
+  static async getCategories(tenantId: string): Promise<ClaimExpenseCategory[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
         const { data, error } = await client
           .from('claim_expense_categories')
           .select('*')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('code', { ascending: true });
 
         if (!error && data && data.length > 0) {
@@ -146,8 +148,9 @@ export class ClaimSettingsService {
     return INITIAL_CLAIM_CATEGORIES;
   }
 
-  static async saveCategory(category: Partial<ClaimExpenseCategory>, tenantId = 'ten_zyvora_corp'): Promise<ClaimExpenseCategory> {
-    const list = await this.getCategories(tenantId);
+  static async saveCategory(category: Partial<ClaimExpenseCategory>, tenantId: string): Promise<ClaimExpenseCategory> {
+    const safeTenantId = assertValidTenantId(category.tenantId || tenantId);
+    const list = await this.getCategories(safeTenantId);
     let updated: ClaimExpenseCategory;
 
     if (category.id) {
@@ -156,6 +159,7 @@ export class ClaimSettingsService {
         updated = {
           ...list[idx],
           ...category,
+          tenantId: safeTenantId,
           updatedAt: new Date().toISOString()
         } as ClaimExpenseCategory;
         list[idx] = updated;
@@ -163,7 +167,7 @@ export class ClaimSettingsService {
         updated = {
           ...category,
           id: category.id,
-          tenantId,
+          tenantId: safeTenantId,
           isActive: category.isActive ?? true
         } as ClaimExpenseCategory;
         list.push(updated);
@@ -171,7 +175,7 @@ export class ClaimSettingsService {
     } else {
       updated = {
         id: `cat_${Date.now()}`,
-        tenantId,
+        tenantId: safeTenantId,
         code: (category.code || 'EXP-NEW').toUpperCase().trim(),
         name: category.name || 'New Claim Category',
         isVehicleActivity: Boolean(category.isVehicleActivity),
@@ -189,7 +193,7 @@ export class ClaimSettingsService {
         const client = getSupabaseClient();
         await client.from('claim_expense_categories').upsert({
           id: updated.id,
-          tenant_id: tenantId,
+          tenant_id: safeTenantId,
           code: updated.code,
           name: updated.name,
           is_vehicle_activity: updated.isVehicleActivity,
@@ -212,14 +216,15 @@ export class ClaimSettingsService {
     return updated;
   }
 
-  static async deleteCategory(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getCategories(tenantId);
+  static async deleteCategory(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getCategories(safeTenantId);
     const filtered = list.filter((c) => c.id !== id);
 
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        await client.from('claim_expense_categories').delete().eq('id', id).eq('tenant_id', tenantId);
+        await client.from('claim_expense_categories').delete().eq('id', id).eq('tenant_id', safeTenantId);
       } catch (err) {
         console.warn('Failed to delete claim category from server:', err);
       }
@@ -238,14 +243,15 @@ export class ClaimSettingsService {
   // 2. AKTIVITAS OPERASIONAL (CLAIM EXPENSE ACTIVITIES)
   // ====================================================================
 
-  static async getActivities(tenantId = 'ten_zyvora_corp'): Promise<ClaimExpenseActivity[]> {
+  static async getActivities(tenantId: string): Promise<ClaimExpenseActivity[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
         const { data, error } = await client
           .from('claim_expense_activities')
           .select('*')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('code', { ascending: true });
 
         if (!error && data && data.length > 0) {
@@ -277,8 +283,9 @@ export class ClaimSettingsService {
     return INITIAL_CLAIM_ACTIVITIES;
   }
 
-  static async saveActivity(activity: Partial<ClaimExpenseActivity>, tenantId = 'ten_zyvora_corp'): Promise<ClaimExpenseActivity> {
-    const list = await this.getActivities(tenantId);
+  static async saveActivity(activity: Partial<ClaimExpenseActivity>, tenantId: string): Promise<ClaimExpenseActivity> {
+    const safeTenantId = assertValidTenantId(activity.tenantId || tenantId);
+    const list = await this.getActivities(safeTenantId);
     let updated: ClaimExpenseActivity;
 
     if (activity.id) {
@@ -287,6 +294,7 @@ export class ClaimSettingsService {
         updated = {
           ...list[idx],
           ...activity,
+          tenantId: safeTenantId,
           updatedAt: new Date().toISOString()
         } as ClaimExpenseActivity;
         list[idx] = updated;
@@ -294,7 +302,7 @@ export class ClaimSettingsService {
         updated = {
           ...activity,
           id: activity.id,
-          tenantId,
+          tenantId: safeTenantId,
           isActive: activity.isActive ?? true
         } as ClaimExpenseActivity;
         list.push(updated);
@@ -302,7 +310,7 @@ export class ClaimSettingsService {
     } else {
       updated = {
         id: `act_${Date.now()}`,
-        tenantId,
+        tenantId: safeTenantId,
         code: (activity.code || 'ACT-NEW').toUpperCase().trim(),
         name: activity.name || 'New Activity',
         businessLineId: activity.businessLineId,
@@ -319,7 +327,7 @@ export class ClaimSettingsService {
         const client = getSupabaseClient();
         await client.from('claim_expense_activities').upsert({
           id: updated.id,
-          tenant_id: tenantId,
+          tenant_id: safeTenantId,
           code: updated.code,
           name: updated.name,
           business_line_id: updated.businessLineId,
@@ -341,14 +349,15 @@ export class ClaimSettingsService {
     return updated;
   }
 
-  static async deleteActivity(id: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getActivities(tenantId);
+  static async deleteActivity(id: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getActivities(safeTenantId);
     const filtered = list.filter((a) => a.id !== id);
 
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        await client.from('claim_expense_activities').delete().eq('id', id).eq('tenant_id', tenantId);
+        await client.from('claim_expense_activities').delete().eq('id', id).eq('tenant_id', safeTenantId);
       } catch (err) {
         console.warn('Failed to delete claim activity from server:', err);
       }

@@ -138,7 +138,7 @@ async function runTestSuite() {
     isActive: true
   };
 
-  const savedVehicle = await VehicleMasterService.saveVehicle(newVehicle);
+  const savedVehicle = await VehicleMasterService.saveVehicle(newVehicle, 'ten_zyvora_corp');
   assert(
     savedVehicle.licensePlate === 'L 9988 ZYV' && savedVehicle.custodianName === 'Arya Pratama',
     'Fleet 4: Penambahan armada baru berhasil menyimpan Nopol dan Pemegang Inventaris',
@@ -150,7 +150,7 @@ async function runTestSuite() {
   // ------------------------------------------------------------------
   console.log('\n[TEST GROUP 3] Setting Claim Expense (Kategori Klaim & Aktivitas Operasional)');
 
-  const categories = await ClaimSettingsService.getCategories();
+  const categories = await ClaimSettingsService.getCategories('ten_zyvora_corp');
   assert(
     categories.length >= 6,
     'Claim Settings 1: Minimal 6 kategori klaim operasional terdaftar',
@@ -171,7 +171,7 @@ async function runTestSuite() {
     `maxLimit: ${travelCat?.maxLimit}`
   );
 
-  const activities = await ClaimSettingsService.getActivities();
+  const activities = await ClaimSettingsService.getActivities('ten_zyvora_corp');
   assert(
     activities.length >= 4,
     'Claim Settings 4: Minimal 4 aktivitas operasional terdaftar',
@@ -193,7 +193,7 @@ async function runTestSuite() {
     maxLimit: 300000,
     isReceiptRequired: true,
     isActive: true
-  });
+  }, 'ten_zyvora_corp');
   assert(
     savedCat.code === 'EXP-PARK' && savedCat.maxLimit === 300000,
     'Claim Settings 6: Simpan kategori klaim baru berhasil disimpan',

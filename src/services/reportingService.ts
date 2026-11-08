@@ -21,7 +21,7 @@ import { TenantMasterService } from './tenantMasterService';
 import { ExpenseClaimService } from './expenseClaimService';
 import { CostAllocationService } from './costAllocationService';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
-import { mapRowToServiceBooking } from './supabaseSyncService';
+import { mapRowToServiceBooking, assertValidTenantId } from './supabaseSyncService';
 
 export interface CostRatioReportOptions {
   serviceBookings?: ServiceBookingOrder[];
@@ -52,14 +52,16 @@ export class ReportingService {
    * Strictly calculates from real live transactions. Zero dummy/mock data.
    */
   static async getCostRatioReport(
-    tenantId = 'ten_zyvora_corp',
+    tenantId: string,
     filter?: CostRatioReportFilter,
     options?: CostRatioReportOptions
   ): Promise<CostRatioReportSummary> {
+    const targetTenantId = assertValidTenantId(tenantId);
+
     // 1. Fetch Market Profile & Business Lines
-    let marketProfile = await TenantMasterService.getMarketProfile(tenantId);
+    let marketProfile = await TenantMasterService.getMarketProfile(targetTenantId);
     if (!marketProfile?.businessLines || marketProfile.businessLines.length === 0) {
-      marketProfile = TenantMasterService.getDefaultMarketProfile(tenantId);
+      marketProfile = TenantMasterService.getDefaultMarketProfile(targetTenantId);
     }
 
     const allLines: TenantBusinessLine[] = marketProfile.businessLines;
@@ -71,7 +73,7 @@ export class ReportingService {
     ) || allLines[0];
 
     // 2. Fetch Live Claims Data (Direct and Holding Operating Costs)
-    const liveClaims = await ExpenseClaimService.getClaims(tenantId);
+    const liveClaims = await ExpenseClaimService.getClaims(targetTenantId);
 
     // Sum live claim costs mapped to each line
     const liveDirectCostByLine: Record<string, number> = {};
@@ -112,20 +114,14 @@ export class ReportingService {
     const liveRevenueByLine: Record<string, number> = {};
 
     let bookings = options?.serviceBookings;
-    if (!bookings && typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('ZYVORA_SERVICE_BOOKINGS');
-        if (cached) bookings = JSON.parse(cached);
-      } catch {}
-    }
 
     if (!bookings && isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        let query = client.from('service_bookings').select('*, items:service_booking_items(*)');
-        if (tenantId !== 'ten_zyvora_corp') {
-          query = query.eq('tenant_id', tenantId);
-        }
+        const query = client
+          .from('service_bookings')
+          .select('*, items:service_booking_items(*)')
+          .eq('tenant_id', targetTenantId);
         const { data, error } = await query;
         if (!error && Array.isArray(data) && data.length > 0) {
           bookings = data.map(mapRowToServiceBooking);

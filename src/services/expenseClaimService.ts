@@ -16,6 +16,7 @@ import {
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { VehicleMasterService } from './vehicleMasterService';
 import { DocumentNumberingService } from './documentNumberingService';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_EXPENSE_CLAIMS: ExpenseClaim[] = [];
 
@@ -71,14 +72,15 @@ export class ExpenseClaimService {
   /**
    * Membaca daftar klaim biaya dari cloud server atau fallback lokal
    */
-  static async getClaims(tenantId = 'ten_zyvora_corp'): Promise<ExpenseClaim[]> {
+  static async getClaims(tenantId: string): Promise<ExpenseClaim[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
         const { data: claimsData, error: claimsError } = await client
           .from('expense_claims')
           .select('*, expense_claim_items(*)')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', safeTenantId)
           .order('claim_date', { ascending: false });
 
         if (!claimsError && claimsData) {
@@ -193,10 +195,12 @@ export class ExpenseClaimService {
    */
   static async saveClaim(
     claim: ExpenseClaim,
-    tenantId = 'ten_zyvora_corp',
+    tenantId: string,
     options?: { tenantCode?: string; branchSuffix?: string }
   ): Promise<ExpenseClaim> {
-    const list = await this.getClaims(tenantId);
+    const safeTenantId = assertValidTenantId(claim.tenantId || tenantId);
+    claim.tenantId = safeTenantId;
+    const list = await this.getClaims(safeTenantId);
     let finalClaim: ExpenseClaim;
 
     // Hitung total nominal persis dari akumulasi baris
@@ -318,9 +322,9 @@ export class ExpenseClaimService {
       transactionId?: string;
       transactionNumber?: string;
     },
-    tenantId = 'ten_zyvora_corp'
+    tenantId?: string
   ): Promise<ExpenseClaim | null> {
-    const list = await this.getClaims(tenantId);
+    const list = await this.getClaims(tenantId || '');
     const target = list.find((c) => c.id === claimId);
     if (!target) return null;
 
@@ -342,20 +346,21 @@ export class ExpenseClaimService {
       target.rejectionReason = options?.rejectionReason || 'Rejected by finance authority';
     }
 
-    return await this.saveClaim(target, tenantId);
+    return await this.saveClaim(target, target.tenantId || tenantId || '');
   }
 
   /**
    * Menghapus klaim (hanya diizinkan jika status draft atau rejected)
    */
-  static async deleteClaim(claimId: string, tenantId = 'ten_zyvora_corp'): Promise<boolean> {
-    const list = await this.getClaims(tenantId);
+  static async deleteClaim(claimId: string, tenantId: string): Promise<boolean> {
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getClaims(safeTenantId);
     const filtered = list.filter((c) => c.id !== claimId);
 
     if (isSupabaseConfigured) {
       try {
         const client = getSupabaseClient();
-        await client.from('expense_claims').delete().eq('id', claimId).eq('tenant_id', tenantId);
+        await client.from('expense_claims').delete().eq('id', claimId).eq('tenant_id', safeTenantId);
       } catch (err) {
         console.warn('Failed to delete claim from server:', err);
       }

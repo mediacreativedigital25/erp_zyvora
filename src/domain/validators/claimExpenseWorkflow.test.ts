@@ -152,7 +152,7 @@ async function runClaimExpenseSuite() {
     items: sampleItems
   };
 
-  const saved = await ExpenseClaimService.saveClaim(multiRowClaim);
+  const saved = await ExpenseClaimService.saveClaim(multiRowClaim, 'ten_zyvora_corp');
   assert(
     saved.totalAmount === 520000,
     'Multi-line 1: Total klaim terakumulasi tepat Rp 520.000 (350k + 70k + 100k)',
@@ -252,7 +252,7 @@ async function runClaimExpenseSuite() {
   // ------------------------------------------------------------------
   console.log('\n[TEST GROUP 4] Master Armada & Log Aktivitas BBM');
 
-  const fleet = await VehicleMasterService.getVehicles();
+  const fleet = await VehicleMasterService.getVehicles('ten_zyvora_corp');
   assert(
     fleet.length >= 3,
     'Fleet 1: Master armada terisi kendaraan operasional awal',

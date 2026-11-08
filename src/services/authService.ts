@@ -271,7 +271,7 @@ export class AuthService {
                   roleTitle: p.roleTitle || `${pNormRole.toUpperCase()} Member`,
                   isPlatformSuperAdmin: Boolean(p.isPlatformSuperAdmin || p.role === 'super_admin'),
                   status: p.status || 'active',
-                  tenantId: p.tenantId || 'ten_zyvora_corp',
+                  tenantId: p.tenantId || (Boolean(p.isPlatformSuperAdmin || p.role === 'super_admin') ? 'all' : ''),
                   allowedBusinessUnits: p.allowedBusinessUnits || ['bu_distribusi'],
                   allowedBranches: p.allowedBranches || ['br_jkt_hq'],
                   createdAt: p.createdAt || profileRow?.created_at || new Date().toISOString(),
@@ -292,15 +292,24 @@ export class AuthService {
         }
       }
 
-      // Resolve tenantId: from membership if assigned, or profile, or default tenant
+      // Resolve tenantId: from membership if assigned, or profile
       let candidateTenantId = memberRow?.tenant_id;
       if (!candidateTenantId || candidateTenantId === '00000000-0000-4000-8000-000000000001') {
         candidateTenantId = profileRow?.tenant_id;
       }
-      if (!candidateTenantId || candidateTenantId === '00000000-0000-4000-8000-000000000001') {
-        candidateTenantId = 'ten_zyvora_corp';
+      if (!candidateTenantId && !isSuperAdmin) {
+        return {
+          status: 'unassigned',
+          error: 'ERR_TENANT_CONTEXT_INVALID: Akun Anda belum memiliki penugasan tenant yang terverifikasi.'
+        };
       }
-      let resolvedTenantId = candidateTenantId;
+      let resolvedTenantId = candidateTenantId || (isSuperAdmin ? 'all' : '');
+      if (!resolvedTenantId) {
+        return {
+          status: 'unassigned',
+          error: 'ERR_TENANT_CONTEXT_INVALID: Akses ditolak karena tenant context tidak valid.'
+        };
+      }
 
       // Normalize role safely prioritizing explicit profile & membership role
       const candidateRole = isSuperAdmin ? 'super_admin' : (profileRow?.role || memberRow?.role || 'owner');

@@ -5,6 +5,7 @@
 
 import { JobOpening, RecruitmentCandidate, RecruitmentStage, Employee } from '../types/erp';
 import { EmployeeService } from './employeeService';
+import { assertValidTenantId } from './supabaseSyncService';
 
 export const INITIAL_JOB_OPENINGS: JobOpening[] = [
   {
@@ -135,31 +136,35 @@ export class RecruitmentService {
   // ----------------------------------------------------
   // JOB OPENINGS
   // ----------------------------------------------------
-  static async getJobOpenings(tenantId = 'ten_zyvora_corp'): Promise<JobOpening[]> {
+  static async getJobOpenings(tenantId: string): Promise<JobOpening[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem(LOCAL_STORAGE_JOBS_KEY);
         if (cached) {
           const parsed: JobOpening[] = JSON.parse(cached);
-          return parsed.filter((j) => !tenantId || j.tenantId === tenantId);
+          return parsed.filter((j) => j.tenantId === safeTenantId);
         }
         localStorage.setItem(LOCAL_STORAGE_JOBS_KEY, JSON.stringify(INITIAL_JOB_OPENINGS));
       } catch {}
     }
-    return INITIAL_JOB_OPENINGS.filter((j) => !tenantId || j.tenantId === tenantId);
+    return INITIAL_JOB_OPENINGS.filter((j) => j.tenantId === safeTenantId);
   }
 
   static async saveJobOpening(job: JobOpening): Promise<JobOpening> {
-    const list = await this.getJobOpenings(job.tenantId);
+    const safeTenantId = assertValidTenantId(job.tenantId);
+    job.tenantId = safeTenantId;
+    const list = await this.getJobOpenings(safeTenantId);
     let saved: JobOpening;
     const idx = list.findIndex((j) => j.id === job.id);
 
     if (idx >= 0) {
-      saved = { ...list[idx], ...job };
+      saved = { ...list[idx], ...job, tenantId: safeTenantId };
       list[idx] = saved;
     } else {
       saved = {
         ...job,
+        tenantId: safeTenantId,
         id: job.id || `job_${Date.now()}`
       };
       list.unshift(saved);
@@ -177,31 +182,35 @@ export class RecruitmentService {
   // ----------------------------------------------------
   // CANDIDATES
   // ----------------------------------------------------
-  static async getCandidates(tenantId = 'ten_zyvora_corp'): Promise<RecruitmentCandidate[]> {
+  static async getCandidates(tenantId: string): Promise<RecruitmentCandidate[]> {
+    const safeTenantId = assertValidTenantId(tenantId);
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem(LOCAL_STORAGE_CAND_KEY);
         if (cached) {
           const parsed: RecruitmentCandidate[] = JSON.parse(cached);
-          return parsed.filter((c) => !tenantId || c.tenantId === tenantId);
+          return parsed.filter((c) => c.tenantId === safeTenantId);
         }
         localStorage.setItem(LOCAL_STORAGE_CAND_KEY, JSON.stringify(INITIAL_CANDIDATES));
       } catch {}
     }
-    return INITIAL_CANDIDATES.filter((c) => !tenantId || c.tenantId === tenantId);
+    return INITIAL_CANDIDATES.filter((c) => c.tenantId === safeTenantId);
   }
 
   static async saveCandidate(cand: RecruitmentCandidate): Promise<RecruitmentCandidate> {
-    const list = await this.getCandidates(cand.tenantId);
+    const safeTenantId = assertValidTenantId(cand.tenantId);
+    cand.tenantId = safeTenantId;
+    const list = await this.getCandidates(safeTenantId);
     let saved: RecruitmentCandidate;
     const idx = list.findIndex((c) => c.id === cand.id);
 
     if (idx >= 0) {
-      saved = { ...list[idx], ...cand };
+      saved = { ...list[idx], ...cand, tenantId: safeTenantId };
       list[idx] = saved;
     } else {
       saved = {
         ...cand,
+        tenantId: safeTenantId,
         id: cand.id || `cand_${Date.now()}`
       };
       list.unshift(saved);
@@ -219,9 +228,10 @@ export class RecruitmentService {
   static async updateCandidateStage(
     candidateId: string,
     stage: RecruitmentStage,
-    tenantId = 'ten_zyvora_corp'
+    tenantId: string
   ): Promise<RecruitmentCandidate | null> {
-    const list = await this.getCandidates(tenantId);
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getCandidates(safeTenantId);
     const candidate = list.find((c) => c.id === candidateId);
     if (!candidate) return null;
 
@@ -237,16 +247,17 @@ export class RecruitmentService {
   static async convertCandidateToEmployee(
     candidateId: string,
     tenantCode = '001',
-    tenantId = 'ten_zyvora_corp'
+    tenantId: string
   ): Promise<{ employee: Employee; candidate: RecruitmentCandidate } | null> {
-    const list = await this.getCandidates(tenantId);
+    const safeTenantId = assertValidTenantId(tenantId);
+    const list = await this.getCandidates(safeTenantId);
     const candidate = list.find((c) => c.id === candidateId);
     if (!candidate) return null;
 
     // Create official employee with candidate's details and required Cost Center
     const newEmployeePayload: Employee = {
       id: `emp_${Date.now()}`,
-      tenantId,
+      tenantId: safeTenantId,
       employeeCode: '', // Auto-generated
       fullName: candidate.fullName,
       email: candidate.email,

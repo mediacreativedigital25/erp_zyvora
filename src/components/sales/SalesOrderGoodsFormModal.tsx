@@ -268,7 +268,7 @@ export const SalesOrderGoodsFormModal: React.FC<SalesOrderGoodsFormModalProps> =
   };
 
   // Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -301,10 +301,10 @@ export const SalesOrderGoodsFormModal: React.FC<SalesOrderGoodsFormModalProps> =
 
       let savedOrder: SalesOrder;
       if (isEditing && initialOrder) {
-        savedOrder = updateSalesOrder(initialOrder.id, payload);
+        savedOrder = await updateSalesOrder(initialOrder.id, payload);
         addToast('Order Updated', `Sales Order ${savedOrder.orderNumber} updated successfully.`, 'success');
       } else {
-        savedOrder = createSalesOrder({
+        savedOrder = await createSalesOrder({
           ...payload,
           preferredOrderNumber: orderNumber
         });

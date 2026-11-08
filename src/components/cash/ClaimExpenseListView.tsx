@@ -23,7 +23,7 @@ export const ClaimExpenseListView: React.FC<ClaimExpenseListViewProps> = ({
   onAddNew,
   onEdit
 }) => {
-  const { branches, addToast } = useErp();
+  const { branches, addToast, tenant } = useErp();
   const { confirm } = useConfirm();
   const [claims, setClaims] = useState<ExpenseClaim[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,7 +43,7 @@ export const ClaimExpenseListView: React.FC<ClaimExpenseListViewProps> = ({
   const loadClaims = async () => {
     setIsLoading(true);
     try {
-      const data = await ExpenseClaimService.getClaims();
+      const data = await ExpenseClaimService.getClaims(tenant.id);
       setClaims(data);
     } catch (err) {
       console.warn('Failed to load claims:', err);
@@ -164,7 +164,7 @@ export const ClaimExpenseListView: React.FC<ClaimExpenseListViewProps> = ({
 
     if (!isConfirmed) return;
 
-    await ExpenseClaimService.deleteClaim(claimId);
+    await ExpenseClaimService.deleteClaim(claimId, tenant.id);
     addToast('Deleted', `Klaim ${claimNumber} telah berhasil dihapus.`, 'info');
     loadClaims();
   };

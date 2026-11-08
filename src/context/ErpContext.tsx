@@ -98,6 +98,8 @@ import {
   UserFilter
 } from '../services/repositories/userAccessRepository';
 import {
+  assertValidTenantId,
+  TenantContextError,
   sanitizeTenantId,
   fetchCustomersFromSupabase,
   syncCustomerToSupabase,
@@ -251,7 +253,7 @@ interface ErpContextType {
   collectors: Collector[];
   purchaseOrders: PurchaseOrder[];
   setPurchaseOrders: React.Dispatch<React.SetStateAction<PurchaseOrder[]>>;
-  createPurchaseOrder: (po: PurchaseOrder) => void;
+  createPurchaseOrder: (po: PurchaseOrder) => Promise<PurchaseOrder>;
   stockMovements: StockMovement[];
   accounts: FinancialAccount[];
   setAccounts: React.Dispatch<React.SetStateAction<FinancialAccount[]>>;
@@ -266,50 +268,51 @@ interface ErpContextType {
   setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
   refreshEmployees: () => Promise<Employee[]>;
   auditLogs: AuditLog[];
+  recordAuditLog: (audit: AuditLog) => Promise<void>;
 
   // Mutators & Rule Helpers
   generateCustomerCode: () => string;
   generateSequenceNumber: (prefix: string) => string;
   createCustomer: (
     customerData: Omit<Customer, 'id' | 'tenantId' | 'customerCode' | 'createdAt' | 'totalOrders' | 'outstandingBalance'> & { preferredCode?: string }
-  ) => Customer;
-  updateCustomer: (id: string, data: Partial<Customer>) => Customer;
-  deleteCustomer: (id: string) => void;
+  ) => Promise<Customer>;
+  updateCustomer: (id: string, data: Partial<Customer>) => Promise<Customer>;
+  deleteCustomer: (id: string) => Promise<void>;
   generateServiceBookingNumber: () => string;
   createServiceBooking: (
     data: Omit<ServiceBookingOrder, 'id' | 'tenantId' | 'bookingNumber' | 'createdAt'> & { preferredBookingNumber?: string }
-  ) => ServiceBookingOrder;
-  updateServiceBooking: (id: string, data: Partial<ServiceBookingOrder>) => ServiceBookingOrder;
-  deleteServiceBooking: (id: string) => void;
+  ) => Promise<ServiceBookingOrder>;
+  updateServiceBooking: (id: string, data: Partial<ServiceBookingOrder>) => Promise<ServiceBookingOrder>;
+  deleteServiceBooking: (id: string) => Promise<void>;
   createSalesOrder: (
     orderData: Omit<SalesOrder, 'id' | 'tenantId' | 'businessUnitId' | 'branchId' | 'orderNumber' | 'createdAt'> & {
       preferredOrderNumber?: string;
       businessUnitId?: string;
       branchId?: string;
     }
-  ) => SalesOrder;
-  updateSalesOrder: (id: string, data: Partial<SalesOrder>) => SalesOrder;
-  deleteSalesOrder: (id: string) => void;
+  ) => Promise<SalesOrder>;
+  updateSalesOrder: (id: string, data: Partial<SalesOrder>) => Promise<SalesOrder>;
+  deleteSalesOrder: (id: string) => Promise<void>;
   generateSalesOrderNumber: () => string;
   generateSalesInvoiceNumber: () => string;
   createSalesInvoice: (
     data: Omit<SalesInvoice, 'id' | 'tenantId' | 'invoiceNumber' | 'createdAt'> & { preferredInvoiceNumber?: string }
-  ) => SalesInvoice;
-  deleteSalesInvoice: (id: string) => void;
+  ) => Promise<SalesInvoice>;
+  deleteSalesInvoice: (id: string) => Promise<void>;
   createReceivePayment: (
     data: Omit<ReceivePayment, 'id' | 'tenantId' | 'paymentNumber' | 'sysNumber' | 'createdAt'> & {
       preferredPaymentNumber?: string;
     }
-  ) => ReceivePayment;
-  approveReceivePayment: (paymentId: string) => void;
-  createStockMovement: (movementData: Omit<StockMovement, 'id' | 'tenantId' | 'movementNumber' | 'date' | 'createdBy'>) => StockMovement;
-  createJournalEntry: (entryData: Omit<JournalEntry, 'id' | 'tenantId' | 'entryNumber' | 'status' | 'postedBy' | 'postedAt'>) => JournalEntry;
-  createProduct: (data: Product) => void;
-  updateProduct: (id: string, data: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  createVendor: (data: Vendor) => void;
-  updateVendor: (id: string, data: Partial<Vendor>) => void;
-  deleteVendor: (id: string) => void;
+  ) => Promise<ReceivePayment>;
+  approveReceivePayment: (paymentId: string) => Promise<void>;
+  createStockMovement: (movementData: Omit<StockMovement, 'id' | 'tenantId' | 'movementNumber' | 'date' | 'createdBy'>) => Promise<StockMovement>;
+  createJournalEntry: (entryData: Omit<JournalEntry, 'id' | 'tenantId' | 'entryNumber' | 'status' | 'postedBy' | 'postedAt'>) => Promise<JournalEntry>;
+  createProduct: (data: Product) => Promise<Product>;
+  updateProduct: (id: string, data: Partial<Product>) => Promise<Product>;
+  deleteProduct: (id: string) => Promise<void>;
+  createVendor: (data: Vendor) => Promise<Vendor>;
+  updateVendor: (id: string, data: Partial<Vendor>) => Promise<Vendor>;
+  deleteVendor: (id: string) => Promise<void>;
 
   // Supabase Integration & Diagnostics
   isSupabaseConfigured: boolean;
@@ -1304,142 +1307,29 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'inv_001', 'inv_002', 'inv_003'
   ]), []);
 
-  // Operational Data & Master Catalogs (Strict Cloud-First Clean State)
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ZYVORA_CUSTOMERS');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const clean = parsed.filter((c: any) => 
-              c.id?.startsWith('cust_') &&
-              !['XPB3R', 'CUST-001', 'CUST-002', 'CUST-003', 'F5N6Y', 'T2Z9Q', 'W4M1T', 'K9X2B', 'P8L3R'].includes(c.customerCode)
-            );
-            return clean;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
-
+  // Operational Business Entities — Initialized as Empty State (Single Source of Truth: Supabase PostgreSQL)
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>(() => INITIAL_VENDORS);
   const [products, setProducts] = useState<Product[]>(() => INITIAL_PRODUCTS);
-
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ZYVORA_SALES_ORDERS');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const clean = parsed.filter((o: any) => !['so_001', 'so_002'].includes(o.id));
-            return clean;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [serviceBookings, setServiceBookings] = useState<ServiceBookingOrder[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ZYVORA_SERVICE_BOOKINGS');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const clean = parsed.filter((b: any) => !b.id?.startsWith('sb_00'));
-            return clean;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [invoices, setInvoices] = useState<SalesInvoice[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ZYVORA_INVOICES');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const clean = parsed.filter((i: any) => !i.id?.startsWith('inv_00'));
-            return clean;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [receivePayments, setReceivePayments] = useState<ReceivePayment[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('ZYVORA_RECEIVE_PAYMENTS');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  // Synchronize Operational Data to LocalStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('ZYVORA_CUSTOMERS', JSON.stringify(customers));
-      } catch {}
-    }
-  }, [customers]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('ZYVORA_SALES_ORDERS', JSON.stringify(salesOrders));
-      } catch {}
-    }
-  }, [salesOrders]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('ZYVORA_SERVICE_BOOKINGS', JSON.stringify(serviceBookings));
-      } catch {}
-    }
-  }, [serviceBookings]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('ZYVORA_INVOICES', JSON.stringify(invoices));
-      } catch {}
-    }
-  }, [invoices]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('ZYVORA_RECEIVE_PAYMENTS', JSON.stringify(receivePayments));
-      } catch {}
-    }
-  }, [receivePayments]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [serviceBookings, setServiceBookings] = useState<ServiceBookingOrder[]>([]);
+  const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
+  const [receivePayments, setReceivePayments] = useState<ReceivePayment[]>([]);
 
   // -------------------------------------------------------------
   // SUPABASE REALTIME CLOUD HYDRATION
   // Authoritatively pulls data from Supabase Cloud on mount & tenant switch
+  // Strict Fail-Closed: only hydrators with verified tenant context are executed
   // -------------------------------------------------------------
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    const targetTenantId = tenant?.id || 'ten_zyvora_corp';
+    if (!isSupabaseConfigured || !tenant?.id) return;
     let isMounted = true;
 
     const hydrateFromCloud = async () => {
       try {
+        const targetTenantId = assertValidTenantId(tenant.id);
+        const isSuperAdmin = Boolean(currentUser.isPlatformSuperAdmin);
+
         const [
           cloudCustomers,
           cloudBookings,
@@ -1450,11 +1340,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cloudPOs,
           cloudJournals
         ] = await Promise.all([
-          fetchCustomersFromSupabase(targetTenantId),
-          fetchServiceBookingsFromSupabase(targetTenantId),
-          fetchSalesOrdersFromSupabase(targetTenantId),
-          fetchInvoicesFromSupabase(targetTenantId),
-          fetchReceivePaymentsFromSupabase(targetTenantId),
+          fetchCustomersFromSupabase(targetTenantId, isSuperAdmin),
+          fetchServiceBookingsFromSupabase(targetTenantId, isSuperAdmin),
+          fetchSalesOrdersFromSupabase(targetTenantId, isSuperAdmin),
+          fetchInvoicesFromSupabase(targetTenantId, isSuperAdmin),
+          fetchReceivePaymentsFromSupabase(targetTenantId, isSuperAdmin),
           fetchStockMovementsFromSupabase(targetTenantId),
           fetchPurchaseOrdersFromSupabase(targetTenantId),
           fetchJournalEntriesFromSupabase(targetTenantId)
@@ -1467,21 +1357,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSalesOrders(cloudOrders);
         setInvoices(cloudInvoices);
         setReceivePayments(cloudPayments);
-        if (cloudMovements && cloudMovements.length > 0) setStockMovements(cloudMovements);
-        if (cloudPOs && cloudPOs.length > 0) setPurchaseOrders(cloudPOs);
-        if (cloudJournals && cloudJournals.length > 0) setJournalEntries(cloudJournals);
-
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('ZYVORA_CUSTOMERS', JSON.stringify(cloudCustomers));
-            localStorage.setItem('ZYVORA_SERVICE_BOOKINGS', JSON.stringify(cloudBookings));
-            localStorage.setItem('ZYVORA_SALES_ORDERS', JSON.stringify(cloudOrders));
-            localStorage.setItem('ZYVORA_INVOICES', JSON.stringify(cloudInvoices));
-            localStorage.setItem('ZYVORA_RECEIVE_PAYMENTS', JSON.stringify(cloudPayments));
-          } catch {}
-        }
+        setStockMovements(cloudMovements);
+        setPurchaseOrders(cloudPOs);
+        setJournalEntries(cloudJournals);
       } catch (err) {
-        console.warn('[ErpContext] Supabase cloud hydration error:', err);
+        console.warn('[Supabase Cloud Hydration Notice]:', err);
       }
     };
 
@@ -1490,7 +1370,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       isMounted = false;
     };
-  }, [tenant?.id]);
+  }, [tenant?.id, currentUser.isPlatformSuperAdmin]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [accounts, setAccounts] = useState<FinancialAccount[]>(() => INITIAL_FINANCIAL_ACCOUNTS);
@@ -1546,9 +1426,18 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  const recordAuditLog = (audit: AuditLog) => {
-    setAuditLogs((prev) => [audit, ...prev]);
-    syncAuditLogToSupabase(audit);
+  const recordAuditLog = async (audit: AuditLog): Promise<void> => {
+    try {
+      const safeTenant = assertValidTenantId(audit.tenantId || tenant.id);
+      const safeAudit: AuditLog = {
+        ...audit,
+        tenantId: safeTenant
+      };
+      await syncAuditLogToSupabase(safeAudit);
+      setAuditLogs((prev) => [safeAudit, ...prev]);
+    } catch (err) {
+      console.warn('[Audit Log Warning]', err);
+    }
   };
 
   // Modals & Panels
@@ -1720,9 +1609,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return generateCanonicalSequence(prefix, count, new Date());
   };
 
-  const createCustomer = (
+  const createCustomer = async (
     data: Omit<Customer, 'id' | 'tenantId' | 'customerCode' | 'createdAt' | 'totalOrders' | 'outstandingBalance'> & { preferredCode?: string }
-  ): Customer => {
+  ): Promise<Customer> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+
     let finalCode = data.preferredCode ? data.preferredCode.trim().toUpperCase() : '';
     
     if (finalCode) {
@@ -1730,7 +1621,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!validation.isValid) {
         throw new Error(`Customer Code tidak valid: ${validation.error}`);
       }
-      const isDuplicate = customers.some((c) => c.customerCode === finalCode);
+      const isDuplicate = customers.some((c) => c.customerCode === finalCode && c.tenantId === safeTenantId);
       if (isDuplicate) {
         throw new Error(`Customer Code [${finalCode}] sudah terdaftar. Silakan gunakan tombol Acak Ulang untuk memperoleh kode baru.`);
       }
@@ -1743,25 +1634,27 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newCustomer: Customer = {
       ...customerFields,
       id: `cust_${Date.now()}`,
-      tenantId: sanitizeTenantId(tenant.id || 'ten_hizaki_wedding'),
+      tenantId: safeTenantId,
       customerCode: finalCode,
       createdAt: new Date().toISOString(),
       totalOrders: 0,
       outstandingBalance: 0
     };
 
+    // Database-First: Confirm with Supabase before mutating React state
+    const syncRes = await syncCustomerToSupabase(newCustomer);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan customer ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setCustomers((prev) => [newCustomer, ...prev]);
-    syncCustomerToSupabase(newCustomer).then((syncRes) => {
-      if (!syncRes.success) {
-        console.error('[Supabase Sync Error]', syncRes.error);
-        addToast('Peringatan Database', `Pelanggan tersimpan lokal, namun sinkronisasi cloud: ${syncRes.error}`, 'warning');
-      }
-    });
 
     // Audit log
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -1771,34 +1664,54 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mendaftarkan pelanggan baru ${newCustomer.companyName} (${finalCode})`,
       ipAddress: '182.253.18.92'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     return newCustomer;
   };
 
-  const updateCustomer = (id: string, data: Partial<Customer>): Customer => {
-    let updatedCustomer: Customer | null = null;
-    setCustomers((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          updatedCustomer = {
-            ...c,
-            ...data,
-            tenantId: sanitizeTenantId(data.tenantId || c.tenantId || tenant.id)
-          };
-          return updatedCustomer;
-        }
-        return c;
-      })
-    );
-    if (!updatedCustomer) throw new Error(`Customer with id ${id} not found.`);
-    syncCustomerToSupabase(updatedCustomer);
+  const updateCustomer = async (id: string, data: Partial<Customer>): Promise<Customer> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = customers.find((c) => c.id === id);
+    if (!existing) {
+      throw new Error(`Customer with id ${id} not found.`);
+    }
+    if (existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const updatedCustomer: Customer = {
+      ...existing,
+      ...data,
+      id: existing.id,
+      tenantId: safeTenantId
+    };
+
+    const syncRes = await syncCustomerToSupabase(updatedCustomer);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal memperbarui customer ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
+    setCustomers((prev) => prev.map((c) => (c.id === id ? updatedCustomer : c)));
     return updatedCustomer;
   };
 
-  const deleteCustomer = (id: string) => {
+  const deleteCustomer = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = customers.find((c) => c.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const delRes = await deleteCustomerFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      const errMsg = delRes.error || 'Gagal menghapus customer dari Supabase database.';
+      console.error('[Supabase Delete Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setCustomers((prev) => prev.filter((c) => c.id !== id));
-    deleteCustomerFromSupabase(id);
   };
 
   const generateServiceBookingNumberCandidate = (): string => {
@@ -1807,9 +1720,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return generateSalesOrderNumber(tenantSeq, nextSeq, new Date());
   };
 
-  const createServiceBooking = (
+  const createServiceBooking = async (
     data: Omit<ServiceBookingOrder, 'id' | 'tenantId' | 'bookingNumber' | 'createdAt'> & { preferredBookingNumber?: string }
-  ): ServiceBookingOrder => {
+  ): Promise<ServiceBookingOrder> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+
     let finalNumber = data.preferredBookingNumber ? data.preferredBookingNumber.trim().toUpperCase() : '';
 
     if (finalNumber) {
@@ -1817,7 +1732,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!validation.isValid) {
         throw new Error(validation.error || 'Invalid booking number format.');
       }
-      const isDuplicate = serviceBookings.some((b) => b.bookingNumber === finalNumber);
+      const isDuplicate = serviceBookings.some((b) => b.bookingNumber === finalNumber && b.tenantId === safeTenantId);
       if (isDuplicate) {
         throw new Error(`Booking number [${finalNumber}] is already assigned.`);
       }
@@ -1839,23 +1754,24 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       eventTitle: safeEventTitle,
       eventDate: safeEventDate,
       id: `sb_${Date.now()}`,
-      tenantId: sanitizeTenantId(tenant.id || 'ten_hizaki_wedding'),
+      tenantId: safeTenantId,
       bookingNumber: finalNumber,
       createdAt: new Date().toISOString()
     };
 
+    const syncRes = await syncServiceBookingToSupabase(newBooking);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan pesanan sewa ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setServiceBookings((prev) => [newBooking, ...prev]);
-    syncServiceBookingToSupabase(newBooking).then((syncRes) => {
-      if (!syncRes.success) {
-        console.error('[Supabase Sync Error]', syncRes.error);
-        addToast('Peringatan Database', `Pesanan tersimpan lokal, namun sinkronisasi cloud: ${syncRes.error}`, 'warning');
-      }
-    });
 
     // Audit log
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -1865,44 +1781,55 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Created service booking order ${finalNumber} for event: ${newBooking.eventTitle}`,
       ipAddress: '127.0.0.1'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     return newBooking;
   };
 
-  const updateServiceBooking = (id: string, data: Partial<ServiceBookingOrder>): ServiceBookingOrder => {
-    let updatedBooking: ServiceBookingOrder | null = null;
-
-    setServiceBookings((prev) =>
-      prev.map((b) => {
-        if (b.id === id) {
-          updatedBooking = {
-            ...b,
-            ...data,
-            updatedAt: new Date().toISOString()
-          };
-          return updatedBooking;
-        }
-        return b;
-      })
-    );
-
-    if (!updatedBooking) {
+  const updateServiceBooking = async (id: string, data: Partial<ServiceBookingOrder>): Promise<ServiceBookingOrder> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = serviceBookings.find((b) => b.id === id);
+    if (!existing) {
       throw new Error(`Service booking order with id ${id} not found.`);
     }
+    if (existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
 
-    syncServiceBookingToSupabase(updatedBooking).then((res) => {
-      if (res && !res.success) {
-        console.error('[Supabase Sync Error]', res.error);
-        addToast('Peringatan Database', `Pembaruan tersimpan lokal, namun sinkronisasi database: ${res.error}`, 'warning');
-      }
-    });
+    const updatedBooking: ServiceBookingOrder = {
+      ...existing,
+      ...data,
+      id: existing.id,
+      tenantId: safeTenantId,
+      updatedAt: new Date().toISOString()
+    };
+
+    const syncRes = await syncServiceBookingToSupabase(updatedBooking);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal memperbarui pesanan sewa ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
+    setServiceBookings((prev) => prev.map((b) => (b.id === id ? updatedBooking : b)));
     return updatedBooking;
   };
 
-  const deleteServiceBooking = (id: string) => {
+  const deleteServiceBooking = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = serviceBookings.find((b) => b.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const delRes = await deleteServiceBookingFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      const errMsg = delRes.error || 'Gagal menghapus pesanan sewa dari Supabase database.';
+      console.error('[Supabase Delete Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setServiceBookings((prev) => prev.filter((b) => b.id !== id));
-    deleteServiceBookingFromSupabase(id);
   };
 
   const generateSalesOrderNumberCandidate = (): string => {
@@ -1911,13 +1838,15 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return generateSalesOrderNumber(tenantSeq, nextSeq, new Date());
   };
 
-  const createSalesOrder = (
+  const createSalesOrder = async (
     data: Omit<SalesOrder, 'id' | 'tenantId' | 'businessUnitId' | 'branchId' | 'orderNumber' | 'createdAt'> & {
       preferredOrderNumber?: string;
       businessUnitId?: string;
       branchId?: string;
     }
-  ): SalesOrder => {
+  ): Promise<SalesOrder> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+
     const finalNumber = data.preferredOrderNumber || generateSalesOrderNumberCandidate();
     const validation = validateSalesOrderNumber(finalNumber);
     if (!validation.isValid) {
@@ -1927,7 +1856,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newOrder: SalesOrder = {
       ...data,
       id: `so_${Date.now()}`,
-      tenantId: sanitizeTenantId(tenant.id),
+      tenantId: safeTenantId,
       businessUnitId: data.businessUnitId || activeBusinessUnit.id,
       branchId: data.branchId || activeBranch.id,
       orderNumber: finalNumber,
@@ -1935,17 +1864,18 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
 
+    const syncRes = await syncSalesOrderToSupabase(newOrder);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan Sales Order ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setSalesOrders((prev) => [newOrder, ...prev]);
-    syncSalesOrderToSupabase(newOrder).then((res) => {
-      if (res && !res.success) {
-        console.error('[Supabase Sync Error]', res.error);
-        addToast('Peringatan Database', `Sales Order tersimpan lokal, namun sinkronisasi database: ${res.error}`, 'warning');
-      }
-    });
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -1955,31 +1885,55 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Created Sales Order ${finalNumber} for customer ${newOrder.customerName}`,
       ipAddress: '127.0.0.1'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     addToast('Sales Order Created', `Order ${finalNumber} created with status OPEN.`, 'success');
     return newOrder;
   };
 
-  const updateSalesOrder = (id: string, data: Partial<SalesOrder>): SalesOrder => {
-    let updatedOrder: SalesOrder | null = null;
-    setSalesOrders((prev) =>
-      prev.map((o) => {
-        if (o.id === id) {
-          updatedOrder = { ...o, ...data };
-          return updatedOrder;
-        }
-        return o;
-      })
-    );
-    if (!updatedOrder) throw new Error(`Sales Order with id ${id} not found.`);
-    syncSalesOrderToSupabase(updatedOrder);
+  const updateSalesOrder = async (id: string, data: Partial<SalesOrder>): Promise<SalesOrder> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = salesOrders.find((o) => o.id === id);
+    if (!existing) {
+      throw new Error(`Sales Order with id ${id} not found.`);
+    }
+    if (existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const updatedOrder: SalesOrder = {
+      ...existing,
+      ...data,
+      id: existing.id,
+      tenantId: safeTenantId
+    };
+
+    const syncRes = await syncSalesOrderToSupabase(updatedOrder);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal memperbarui Sales Order di Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
+    setSalesOrders((prev) => prev.map((o) => (o.id === id ? updatedOrder : o)));
     return updatedOrder;
   };
 
-  const deleteSalesOrder = (id: string) => {
+  const deleteSalesOrder = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = salesOrders.find((o) => o.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const delRes = await deleteSalesOrderFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      const errMsg = delRes.error || 'Gagal menghapus Sales Order dari Supabase database.';
+      console.error('[Supabase Delete Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setSalesOrders((prev) => prev.filter((o) => o.id !== id));
-    deleteSalesOrderFromSupabase(id);
   };
 
   const generateSalesInvoiceNumberCandidate = (): string => {
@@ -1988,11 +1942,13 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return generateSalesInvoiceNumber(tenantSeq, nextSeq, new Date());
   };
 
-  const createSalesInvoice = (
+  const createSalesInvoice = async (
     data: Omit<SalesInvoice, 'id' | 'tenantId' | 'invoiceNumber' | 'createdAt'> & {
       preferredInvoiceNumber?: string;
     }
-  ): SalesInvoice => {
+  ): Promise<SalesInvoice> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+
     const finalNumber = data.preferredInvoiceNumber || generateSalesInvoiceNumberCandidate();
     const validation = validateSalesInvoiceNumber(finalNumber);
     if (!validation.isValid) {
@@ -2002,18 +1958,24 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newInvoice: SalesInvoice = {
       ...data,
       id: `inv_${Date.now()}`,
-      tenantId: sanitizeTenantId(tenant.id),
+      tenantId: safeTenantId,
       invoiceNumber: finalNumber,
       status: data.status || 'unpaid',
       createdAt: new Date().toISOString()
     };
 
+    const syncRes = await syncInvoiceToSupabase(newInvoice);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan faktur ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setInvoices((prev) => [newInvoice, ...prev]);
-    syncInvoiceToSupabase(newInvoice);
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -2023,22 +1985,36 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Generated Commercial Invoice ${finalNumber} for order ${newInvoice.sourceNumber}`,
       ipAddress: '127.0.0.1'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     addToast('Invoice Generated', `Commercial Invoice ${finalNumber} has been generated.`, 'success');
     return newInvoice;
   };
 
-  const deleteSalesInvoice = (id: string) => {
+  const deleteSalesInvoice = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = invoices.find((i) => i.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+
+    const delRes = await deleteInvoiceFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      const errMsg = delRes.error || 'Gagal menghapus faktur dari Supabase database.';
+      console.error('[Supabase Delete Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setInvoices((prev) => prev.filter((i) => i.id !== id));
-    deleteInvoiceFromSupabase(id);
   };
 
-  const createReceivePayment = (
+  const createReceivePayment = async (
     data: Omit<ReceivePayment, 'id' | 'tenantId' | 'paymentNumber' | 'sysNumber' | 'createdAt'> & {
       preferredPaymentNumber?: string;
     }
-  ): ReceivePayment => {
+  ): Promise<ReceivePayment> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+
     const nextSeq = receivePayments.length + 1;
     const yearMonth = new Date().toISOString().slice(0, 7).replace('-', '');
     const finalNumber =
@@ -2049,7 +2025,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newPayment: ReceivePayment = {
       ...data,
       id: `rp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      tenantId: sanitizeTenantId(tenant.id),
+      tenantId: safeTenantId,
       paymentNumber: finalNumber,
       sysNumber,
       isChecked: data.isChecked ?? (data.status === 'approved'),
@@ -2059,41 +2035,47 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
 
-    // If status is approved, instantly settle the targeted invoices
+    // Database-First: Sync payment record first
+    const syncRes = await syncReceivePaymentToSupabase(newPayment);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan penerimaan pembayaran ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
+    // If status is approved, update targeted invoices in Supabase
+    let updatedInvoicesMap: Record<string, SalesInvoice> = {};
     if (newPayment.status === 'approved' && newPayment.allocations.length > 0) {
-      setInvoices((prev) =>
-        prev.map((inv) => {
-          const matchedAlloc = newPayment.allocations.find(
-            (a) => a.invoiceId === inv.id || a.invoiceNumber === inv.invoiceNumber
-          );
-          if (matchedAlloc) {
-            const newPaid = inv.paidAmount + matchedAlloc.paidAmount;
-            const newOutstanding = Math.max(0, inv.totalAmount - newPaid);
-            const updated = {
-              ...inv,
-              paidAmount: newPaid,
-              outstandingBalance: newOutstanding,
-              status: (newOutstanding === 0 ? 'paid' : 'partially_paid') as SalesInvoice['status']
-            };
-            syncInvoiceToSupabase(updated);
-            return updated;
+      for (const alloc of newPayment.allocations) {
+        const inv = invoices.find((i) => i.id === alloc.invoiceId || i.invoiceNumber === alloc.invoiceNumber);
+        if (inv) {
+          const newPaid = inv.paidAmount + alloc.paidAmount;
+          const newOutstanding = Math.max(0, inv.totalAmount - newPaid);
+          const updatedInv: SalesInvoice = {
+            ...inv,
+            paidAmount: newPaid,
+            outstandingBalance: newOutstanding,
+            status: (newOutstanding === 0 ? 'paid' : 'partially_paid') as SalesInvoice['status']
+          };
+          const invSyncRes = await syncInvoiceToSupabase(updatedInv);
+          if (invSyncRes.success) {
+            updatedInvoicesMap[inv.id] = updatedInv;
           }
-          return inv;
-        })
+        }
+      }
+    }
+
+    if (Object.keys(updatedInvoicesMap).length > 0) {
+      setInvoices((prev) =>
+        prev.map((inv) => updatedInvoicesMap[inv.id] || inv)
       );
     }
 
     setReceivePayments((prev) => [newPayment, ...prev]);
-    syncReceivePaymentToSupabase(newPayment).then((res) => {
-      if (res && !res.success) {
-        console.error('[Supabase Sync Error]', res.error);
-        addToast('Peringatan Database', `Penerimaan tersimpan lokal, namun sinkronisasi database: ${res.error}`, 'warning');
-      }
-    });
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
-      tenantId: tenant.id,
+      tenantId: safeTenantId,
       timestamp: new Date().toISOString(),
       actorName: currentUser.fullName,
       actorRole: currentUser.role,
@@ -2103,7 +2085,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mencatat Receive Payment ${finalNumber} senilai Rp ${newPayment.totalPaymentAmount.toLocaleString('id-ID')} untuk ${newPayment.customerName}`,
       ipAddress: '127.0.0.1'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     addToast(
       'Penerimaan Pembayaran Disimpan',
@@ -2113,47 +2095,61 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newPayment;
   };
 
-  const approveReceivePayment = (paymentId: string) => {
-    let targetUpdated: ReceivePayment | null = null;
-    setReceivePayments((prev) =>
-      prev.map((rp) => {
-        if (rp.id === paymentId) {
-          // Settle targeted invoices if any
-          if (rp.allocations.length > 0) {
-            setInvoices((prevInv) =>
-              prevInv.map((inv) => {
-                const matchedAlloc = rp.allocations.find(
-                  (a) => a.invoiceId === inv.id || a.invoiceNumber === inv.invoiceNumber
-                );
-                if (matchedAlloc) {
-                  const newPaid = inv.paidAmount + matchedAlloc.paidAmount;
-                  const newOutstanding = Math.max(0, inv.totalAmount - newPaid);
-                  const updatedInv = {
-                    ...inv,
-                    paidAmount: newPaid,
-                    outstandingBalance: newOutstanding,
-                    status: (newOutstanding === 0 ? 'paid' : 'partially_paid') as SalesInvoice['status']
-                  };
-                  syncInvoiceToSupabase(updatedInv);
-                  return updatedInv;
-                }
-                return inv;
-              })
-            );
-          }
+  const approveReceivePayment = async (paymentId: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existingPayment = receivePayments.find((rp) => rp.id === paymentId);
+    if (!existingPayment) {
+      throw new Error(`Receive payment with id ${paymentId} not found.`);
+    }
+    if (existingPayment.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
 
-          targetUpdated = {
-            ...rp,
-            status: 'approved',
-            isChecked: true,
-            approvedAt: new Date().toISOString(),
-            approvedBy: currentUser.fullName
+    const targetUpdated: ReceivePayment = {
+      ...existingPayment,
+      status: 'approved',
+      isChecked: true,
+      approvedAt: new Date().toISOString(),
+      approvedBy: currentUser.fullName
+    };
+
+    const syncRes = await syncReceivePaymentToSupabase(targetUpdated);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyetujui penerimaan pembayaran di Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
+    // Settle targeted invoices if any
+    let updatedInvoicesMap: Record<string, SalesInvoice> = {};
+    if (targetUpdated.allocations.length > 0) {
+      for (const alloc of targetUpdated.allocations) {
+        const inv = invoices.find((i) => i.id === alloc.invoiceId || i.invoiceNumber === alloc.invoiceNumber);
+        if (inv) {
+          const newPaid = inv.paidAmount + alloc.paidAmount;
+          const newOutstanding = Math.max(0, inv.totalAmount - newPaid);
+          const updatedInv: SalesInvoice = {
+            ...inv,
+            paidAmount: newPaid,
+            outstandingBalance: newOutstanding,
+            status: (newOutstanding === 0 ? 'paid' : 'partially_paid') as SalesInvoice['status']
           };
-          syncReceivePaymentToSupabase(targetUpdated);
-          return targetUpdated;
+          const invSyncRes = await syncInvoiceToSupabase(updatedInv);
+          if (invSyncRes.success) {
+            updatedInvoicesMap[inv.id] = updatedInv;
+          }
         }
-        return rp;
-      })
+      }
+    }
+
+    if (Object.keys(updatedInvoicesMap).length > 0) {
+      setInvoices((prev) =>
+        prev.map((inv) => updatedInvoicesMap[inv.id] || inv)
+      );
+    }
+
+    setReceivePayments((prev) =>
+      prev.map((rp) => (rp.id === paymentId ? targetUpdated : rp))
     );
 
     addToast(
@@ -2163,57 +2159,87 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const createProduct = (data: Product) => {
-    setProducts((prev) => [data, ...prev]);
-    syncProductToSupabase(data);
+  const createProduct = async (data: Product): Promise<Product> => {
+    const safeTenantId = assertValidTenantId(data.tenantId || tenant.id);
+    const finalProduct = { ...data, tenantId: safeTenantId };
+    const syncRes = await syncProductToSupabase(finalProduct);
+    if (!syncRes.success) {
+      throw new Error(syncRes.error || 'Gagal menyimpan produk ke Supabase database.');
+    }
+    setProducts((prev) => [finalProduct, ...prev]);
+    return finalProduct;
   };
 
-  const updateProduct = (id: string, data: Partial<Product>) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const updated = { ...p, ...data };
-          syncProductToSupabase(updated);
-          return updated;
-        }
-        return p;
-      })
-    );
+  const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = products.find((p) => p.id === id);
+    if (!existing) throw new Error(`Product with id ${id} not found.`);
+    if (existing.tenantId !== safeTenantId) throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    const updated = { ...existing, ...data, id, tenantId: safeTenantId };
+    const syncRes = await syncProductToSupabase(updated);
+    if (!syncRes.success) {
+      throw new Error(syncRes.error || 'Gagal memperbarui produk di Supabase database.');
+    }
+    setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = products.find((p) => p.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+    const delRes = await deleteProductFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      throw new Error(delRes.error || 'Gagal menghapus produk dari Supabase database.');
+    }
     setProducts((prev) => prev.filter((p) => p.id !== id));
-    deleteProductFromSupabase(id);
   };
 
-  const createVendor = (data: Vendor) => {
-    setVendors((prev) => [data, ...prev]);
-    syncVendorToSupabase(data);
+  const createVendor = async (data: Vendor): Promise<Vendor> => {
+    const safeTenantId = assertValidTenantId(data.tenantId || tenant.id);
+    const finalVendor = { ...data, tenantId: safeTenantId };
+    const syncRes = await syncVendorToSupabase(finalVendor);
+    if (!syncRes.success) {
+      throw new Error(syncRes.error || 'Gagal menyimpan vendor ke Supabase database.');
+    }
+    setVendors((prev) => [finalVendor, ...prev]);
+    return finalVendor;
   };
 
-  const updateVendor = (id: string, data: Partial<Vendor>) => {
-    setVendors((prev) =>
-      prev.map((v) => {
-        if (v.id === id) {
-          const updated = { ...v, ...data };
-          syncVendorToSupabase(updated);
-          return updated;
-        }
-        return v;
-      })
-    );
+  const updateVendor = async (id: string, data: Partial<Vendor>): Promise<Vendor> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = vendors.find((v) => v.id === id);
+    if (!existing) throw new Error(`Vendor with id ${id} not found.`);
+    if (existing.tenantId !== safeTenantId) throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    const updated = { ...existing, ...data, id, tenantId: safeTenantId };
+    const syncRes = await syncVendorToSupabase(updated);
+    if (!syncRes.success) {
+      throw new Error(syncRes.error || 'Gagal memperbarui vendor di Supabase database.');
+    }
+    setVendors((prev) => prev.map((v) => (v.id === id ? updated : v)));
+    return updated;
   };
 
-  const deleteVendor = (id: string) => {
+  const deleteVendor = async (id: string): Promise<void> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
+    const existing = vendors.find((v) => v.id === id);
+    if (existing && existing.tenantId !== safeTenantId) {
+      throw new Error(`[ERR_TENANT_CONTEXT_INVALID] Akses lintas tenant ditolak.`);
+    }
+    const delRes = await deleteVendorFromSupabase(id, safeTenantId);
+    if (!delRes.success) {
+      throw new Error(delRes.error || 'Gagal menghapus vendor dari Supabase database.');
+    }
     setVendors((prev) => prev.filter((v) => v.id !== id));
-    deleteVendorFromSupabase(id);
   };
 
-  const createStockMovement = (
+  const createStockMovement = async (
     data: Omit<StockMovement, 'id' | 'tenantId' | 'movementNumber' | 'date' | 'createdBy'>
-  ): StockMovement => {
+  ): Promise<StockMovement> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
     const movementNumber = generateSequenceNumber('MUT');
-    const safeTenantId = sanitizeTenantId(tenant.id);
     const newMovement: StockMovement = {
       ...data,
       id: `mut_${Date.now()}`,
@@ -2223,8 +2249,14 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdBy: currentUser.fullName
     };
 
+    const syncRes = await syncStockMovementToSupabase(newMovement);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan mutasi stok ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setStockMovements((prev) => [newMovement, ...prev]);
-    syncStockMovementToSupabase(newMovement);
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
@@ -2238,17 +2270,17 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mutasi stok ${movementNumber}: ${data.quantity} ${data.uom} ${data.productName}`,
       ipAddress: '182.253.18.92'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     addToast('Mutasi Stok Dicatat', `${movementNumber} berhasil disimpan ke kartu stok`, 'success');
     return newMovement;
   };
 
-  const createJournalEntry = (
+  const createJournalEntry = async (
     data: Omit<JournalEntry, 'id' | 'tenantId' | 'entryNumber' | 'status' | 'postedBy' | 'postedAt'>
-  ): JournalEntry => {
+  ): Promise<JournalEntry> => {
+    const safeTenantId = assertValidTenantId(tenant.id);
     const entryNumber = generateSequenceNumber('JV');
-    const safeTenantId = sanitizeTenantId(tenant.id);
     const newEntry: JournalEntry = {
       ...data,
       id: `jv_${Date.now()}`,
@@ -2258,8 +2290,14 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       postedBy: currentUser.fullName
     };
 
+    const syncRes = await syncJournalEntryToSupabase(newEntry);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan voucher jurnal umum ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+
     setJournalEntries((prev) => [newEntry, ...prev]);
-    syncJournalEntryToSupabase(newEntry);
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
@@ -2273,15 +2311,23 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Draf voucher jurnal umum ${entryNumber} dibuat (Debit/Kredit seimbang)`,
       ipAddress: '182.253.18.92'
     };
-    recordAuditLog(audit);
+    recordAuditLog(audit).catch(console.warn);
 
     addToast('Jurnal Draf Disimpan', `Nomor Jurnal: ${entryNumber}`, 'info');
     return newEntry;
   };
 
-  const createPurchaseOrder = (poData: PurchaseOrder) => {
-    setPurchaseOrders((prev) => [poData, ...prev]);
-    syncPurchaseOrderToSupabase(poData);
+  const createPurchaseOrder = async (poData: PurchaseOrder): Promise<PurchaseOrder> => {
+    const safeTenantId = assertValidTenantId(poData.tenantId || tenant.id);
+    const finalPO = { ...poData, tenantId: safeTenantId };
+    const syncRes = await syncPurchaseOrderToSupabase(finalPO);
+    if (!syncRes.success) {
+      const errMsg = syncRes.error || 'Gagal menyimpan Purchase Order ke Supabase database.';
+      console.error('[Supabase Sync Error]', errMsg);
+      throw new Error(errMsg);
+    }
+    setPurchaseOrders((prev) => [finalPO, ...prev]);
+    return finalPO;
   };
 
   // Keyboard shortcut for Cmd/Ctrl+K search
@@ -2377,6 +2423,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setEmployees,
         refreshEmployees,
         auditLogs,
+        recordAuditLog,
         generateCustomerCode,
         generateSequenceNumber,
         createCustomer,

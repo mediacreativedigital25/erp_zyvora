@@ -360,7 +360,7 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
   // =========================================================================
   // SUBMIT & COMPLETE PICKING (GATE 2 PASSED -> AUTO-INVOICE GENERATION)
   // =========================================================================
-  const handleSubmitPicking = () => {
+  const handleSubmitPicking = async () => {
     if (!selectedOrder) {
       addToast('Validation Incomplete', 'Please select a Reserve Order first.', 'error');
       return;
@@ -385,13 +385,13 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
     const orderNo = selectedOrder.orderNumber;
 
     if (selectedOrder.sourceType === 'goods' && selectedOrder.rawGoodsOrder) {
-      updateSalesOrder(selectedOrder.rawGoodsOrder.id, {
+      await updateSalesOrder(selectedOrder.rawGoodsOrder.id, {
         status: 'picked',
         deliveryOrderNumber: doNumber,
         pickingDate
       });
     } else if (selectedOrder.rawServiceBooking) {
-      updateServiceBooking(selectedOrder.rawServiceBooking.id, {
+      await updateServiceBooking(selectedOrder.rawServiceBooking.id, {
         status: 'picked',
         deliveryOrderNumber: doNumber,
         pickingDate
@@ -402,7 +402,7 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
         (o) => o.id === selectedOrder.id || o.id === cleanId || o.orderNumber === orderNo
       );
       if (targetSo) {
-        updateSalesOrder(targetSo.id, {
+        await updateSalesOrder(targetSo.id, {
           status: 'picked',
           deliveryOrderNumber: doNumber,
           pickingDate
@@ -413,7 +413,7 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
         (b) => b.id === selectedOrder.id || b.id === cleanId || b.bookingNumber === orderNo
       );
       if (targetSb) {
-        updateServiceBooking(targetSb.id, {
+        await updateServiceBooking(targetSb.id, {
           status: 'picked',
           deliveryOrderNumber: doNumber,
           pickingDate
@@ -447,7 +447,7 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
         selectedOrder.rawGoodsOrder?.id ||
         selectedOrder.id.replace(/^(sb_sb_|so_so_)/, (m) => (m === 'sb_sb_' ? 'sb_' : 'so_'));
 
-      const generatedInvoice = createSalesInvoice({
+      const generatedInvoice = await createSalesInvoice({
         sourceType: selectedOrder.sourceType === 'goods' ? 'sales_order' : 'service_booking',
         sourceId: cleanSourceId,
         sourceNumber: selectedOrder.orderNumber,
