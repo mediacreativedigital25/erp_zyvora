@@ -10,7 +10,12 @@ import {
   SalesInvoiceItem,
   ReceivePayment,
   Product,
-  Vendor
+  Vendor,
+  StockMovement,
+  PurchaseOrder,
+  FinancialAccount,
+  JournalEntry,
+  AuditLog
 } from '../types/erp';
 
 // ====================================================================
@@ -578,7 +583,9 @@ export const mapInvoiceToRow = (inv: SalesInvoice): Record<string, any> => {
     tenant_id: sanitizeTenantId(inv.tenantId),
     invoice_number: inv.invoiceNumber,
     source_type: inv.sourceType || 'service_booking',
-    source_id: inv.sourceId || null,
+    source_id: inv.sourceId
+      ? inv.sourceId.replace(/^(sb_sb_|so_so_)/, (m) => (m === 'sb_sb_' ? 'sb_' : 'so_'))
+      : null,
     source_number: inv.sourceNumber || null,
     customer_id: inv.customerId || null,
     customer_code: inv.customerCode || 'CUST',
@@ -624,7 +631,9 @@ export const mapRowToInvoice = (row: any): SalesInvoice => {
     tenantId: row.tenant_id,
     invoiceNumber: row.invoice_number,
     sourceType: row.source_type || 'service_booking',
-    sourceId: row.source_id,
+    sourceId: row.source_id
+      ? row.source_id.replace(/^(sb_sb_|so_so_)/, (m: string) => (m === 'sb_sb_' ? 'sb_' : 'so_'))
+      : '',
     sourceNumber: row.source_number,
     customerId: row.customer_id,
     customerCode: row.customer_code,
@@ -1007,3 +1016,284 @@ export const fetchVendorsFromSupabase = async (tenantId: string): Promise<Vendor
     return [];
   }
 };
+
+// ====================================================================
+// 8. STOCK MOVEMENTS SYNC
+// ====================================================================
+
+export const mapStockMovementToRow = (m: StockMovement): Record<string, any> => ({
+  id: m.id,
+  tenant_id: sanitizeTenantId(m.tenantId),
+  movement_number: m.movementNumber,
+  date: sanitizeDate(m.date, true)!,
+  sku: m.sku || null,
+  product_name: m.productName,
+  movement_type: m.type?.toUpperCase() || 'ADJUSTMENT',
+  quantity: Number(m.quantity) || 0,
+  uom: m.uom || 'Pcs',
+  source_type: m.referenceDoc ? 'DOC' : 'MANUAL',
+  source_ref: m.referenceDoc || null,
+  notes: m.notes || '',
+  created_by: m.createdBy || 'Admin'
+});
+
+export const mapRowToStockMovement = (row: any): StockMovement => ({
+  id: row.id,
+  tenantId: row.tenant_id,
+  movementNumber: row.movement_number,
+  date: row.date,
+  type: (row.movement_type?.toLowerCase() || 'adjustment') as StockMovement['type'],
+  sourceWarehouseId: row.warehouse_id,
+  destinationWarehouseId: row.warehouse_id,
+  sku: row.sku || '',
+  productName: row.product_name,
+  quantity: Number(row.quantity) || 0,
+  uom: row.uom || 'Pcs',
+  referenceDoc: row.source_ref || '',
+  notes: row.notes || '',
+  createdBy: row.created_by || 'Admin'
+});
+
+export const syncStockMovementToSupabase = async (m: StockMovement): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
+  try {
+    const client = getSupabaseClient();
+    const row = mapStockMovementToRow(m);
+    const { error } = await client.from('stock_movements').upsert(row);
+    if (error) {
+      console.warn('[Supabase Sync] Upsert stock movement error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Supabase Sync] Stock movement sync exception:', err);
+    return { success: false, error: err?.message };
+  }
+};
+
+export const fetchStockMovementsFromSupabase = async (tenantId: string): Promise<StockMovement[]> => {
+  if (!isSupabaseConfigured) return [];
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('stock_movements')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      // Table may not yet be created or postgrest caching
+      return [];
+    }
+    return (data || []).map(mapRowToStockMovement);
+  } catch (err) {
+    return [];
+  }
+};
+
+// ====================================================================
+// 9. PURCHASE ORDERS SYNC
+// ====================================================================
+
+export const mapPurchaseOrderToRow = (po: PurchaseOrder): Record<string, any> => ({
+  id: po.id,
+  tenant_id: sanitizeTenantId(po.tenantId),
+  po_number: po.orderNumber,
+  po_date: sanitizeDate(po.orderDate, true)!,
+  vendor_code: po.vendorCode || null,
+  vendor_name: po.vendorName,
+  branch_id: po.branchId || null,
+  warehouse_id: po.warehouseId || null,
+  total_amount: Number(po.totalAmount) || 0,
+  status: po.status || 'draft',
+  created_at: new Date().toISOString()
+});
+
+export const mapRowToPurchaseOrder = (row: any): PurchaseOrder => ({
+  id: row.id,
+  tenantId: row.tenant_id,
+  businessUnitId: row.business_unit_id || 'bu_01',
+  branchId: row.branch_id || 'br_01',
+  warehouseId: row.warehouse_id || 'wh_01',
+  orderNumber: row.po_number,
+  vendorCode: row.vendor_code || '',
+  vendorName: row.vendor_name,
+  orderDate: row.po_date,
+  expectedDate: row.expected_date || row.po_date,
+  totalAmount: Number(row.total_amount) || 0,
+  status: row.status || 'draft',
+  items: (row.items || []).map((it: any) => ({
+    productId: it.product_id || '',
+    sku: it.sku || '',
+    name: it.name || '',
+    quantity: Number(it.quantity) || 1,
+    uom: it.uom || 'Pcs',
+    unitCost: Number(it.unit_cost || it.unit_price) || 0,
+    total: Number(it.total || it.subtotal) || 0
+  }))
+});
+
+export const syncPurchaseOrderToSupabase = async (po: PurchaseOrder): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
+  try {
+    const client = getSupabaseClient();
+    const row = mapPurchaseOrderToRow(po);
+    const { error } = await client.from('purchase_orders').upsert(row);
+    if (error) {
+      console.warn('[Supabase Sync] Upsert PO error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (po.items && po.items.length > 0) {
+      const itemRows = po.items.map((it, idx) => ({
+        id: `${po.id}_item_${idx + 1}`,
+        po_id: po.id,
+        sku: it.sku || null,
+        name: it.name,
+        quantity: Number(it.quantity) || 1,
+        uom: it.uom || 'Pcs',
+        unit_price: Number(it.unitCost) || 0,
+        subtotal: Number(it.total) || 0
+      }));
+      await client.from('purchase_order_items').upsert(itemRows);
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Supabase Sync] PO sync exception:', err);
+    return { success: false, error: err?.message };
+  }
+};
+
+export const fetchPurchaseOrdersFromSupabase = async (tenantId: string): Promise<PurchaseOrder[]> => {
+  if (!isSupabaseConfigured) return [];
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('purchase_orders')
+      .select('*, items:purchase_order_items(*)')
+      .eq('tenant_id', tenantId)
+      .order('po_date', { ascending: false });
+
+    if (error) return [];
+    return (data || []).map(mapRowToPurchaseOrder);
+  } catch (err) {
+    return [];
+  }
+};
+
+// ====================================================================
+// 10. FINANCIAL ACCOUNTS & JOURNAL ENTRIES SYNC
+// ====================================================================
+
+export const mapJournalEntryToRow = (j: JournalEntry): Record<string, any> => ({
+  id: j.id,
+  tenant_id: sanitizeTenantId(j.tenantId),
+  entry_number: j.entryNumber,
+  entry_date: sanitizeDate(j.date, true)!,
+  reference_type: 'MANUAL',
+  reference_number: j.reference || null,
+  description: j.description,
+  total_debit: Number(j.totalDebit) || 0,
+  total_credit: Number(j.totalCredit) || 0,
+  status: j.status || 'draft',
+  posted_by: j.postedBy || 'Admin',
+  posted_at: j.postedAt || (j.status === 'posted' ? new Date().toISOString() : null)
+});
+
+export const mapRowToJournalEntry = (row: any): JournalEntry => ({
+  id: row.id,
+  tenantId: row.tenant_id,
+  entryNumber: row.entry_number,
+  date: row.entry_date,
+  reference: row.reference_number || '',
+  description: row.description,
+  status: row.status || 'draft',
+  totalDebit: Number(row.total_debit) || 0,
+  totalCredit: Number(row.total_credit) || 0,
+  postedBy: row.posted_by || 'Admin',
+  postedAt: row.posted_at,
+  lines: (row.lines || []).map((l: any) => ({
+    accountCode: l.account_code || '',
+    accountName: l.account_name || '',
+    debit: Number(l.debit) || 0,
+    credit: Number(l.credit) || 0,
+    memo: l.line_memo || ''
+  }))
+});
+
+export const syncJournalEntryToSupabase = async (j: JournalEntry): Promise<{ success: boolean; error?: string }> => {
+  if (!isSupabaseConfigured) return { success: true };
+  try {
+    const client = getSupabaseClient();
+    const row = mapJournalEntryToRow(j);
+    const { error } = await client.from('journal_entries').upsert(row);
+    if (error) {
+      console.warn('[Supabase Sync] Upsert journal error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (j.lines && j.lines.length > 0) {
+      const lineRows = j.lines.map((l, idx) => ({
+        id: `${j.id}_line_${idx + 1}`,
+        journal_entry_id: j.id,
+        account_code: l.accountCode,
+        account_name: l.accountName,
+        debit: Number(l.debit) || 0,
+        credit: Number(l.credit) || 0,
+        line_memo: l.memo || ''
+      }));
+      await client.from('journal_entry_lines').upsert(lineRows);
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('[Supabase Sync] Journal sync exception:', err);
+    return { success: false, error: err?.message };
+  }
+};
+
+export const fetchJournalEntriesFromSupabase = async (tenantId: string): Promise<JournalEntry[]> => {
+  if (!isSupabaseConfigured) return [];
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('journal_entries')
+      .select('*, lines:journal_entry_lines(*)')
+      .eq('tenant_id', tenantId)
+      .order('entry_date', { ascending: false });
+
+    if (error) return [];
+    return (data || []).map(mapRowToJournalEntry);
+  } catch (err) {
+    return [];
+  }
+};
+
+// ====================================================================
+// 11. AUDIT LOGS SYNC
+// ====================================================================
+
+export const syncAuditLogToSupabase = async (a: AuditLog): Promise<void> => {
+  if (!isSupabaseConfigured) return;
+  try {
+    const client = getSupabaseClient();
+    const row = {
+      id: a.id,
+      tenant_id: sanitizeTenantId(a.tenantId),
+      actor_name: a.actorName,
+      actor_role: a.actorRole || null,
+      action: a.action,
+      entity: a.entity || null,
+      entity_id: a.entityId || null,
+      description: a.description || null,
+      ip_address: a.ipAddress || null,
+      created_at: a.timestamp || new Date().toISOString()
+    };
+    const { error } = await client.from('audit_logs').insert(row);
+    if (error) {
+      console.warn('[Supabase Sync] Insert audit log notice:', error.message);
+    }
+  } catch (err) {
+    console.warn('[Supabase Sync] Audit log sync exception:', err);
+  }
+};
+

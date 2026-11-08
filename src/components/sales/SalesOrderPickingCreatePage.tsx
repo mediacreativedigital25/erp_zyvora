@@ -442,9 +442,14 @@ export const SalesOrderPickingCreatePage: React.FC<SalesOrderPickingCreatePagePr
 
     let invoiceNumberCreated = 'INV-PENDING';
     try {
+      const cleanSourceId =
+        selectedOrder.rawServiceBooking?.id ||
+        selectedOrder.rawGoodsOrder?.id ||
+        selectedOrder.id.replace(/^(sb_sb_|so_so_)/, (m) => (m === 'sb_sb_' ? 'sb_' : 'so_'));
+
       const generatedInvoice = createSalesInvoice({
         sourceType: selectedOrder.sourceType === 'goods' ? 'sales_order' : 'service_booking',
-        sourceId: selectedOrder.id,
+        sourceId: cleanSourceId,
         sourceNumber: selectedOrder.orderNumber,
         customerId: selectedOrder.customerId || 'cust_generic',
         customerCode: selectedOrder.customerCode,

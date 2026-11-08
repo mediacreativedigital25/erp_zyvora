@@ -118,7 +118,14 @@ import {
   deleteProductFromSupabase,
   fetchVendorsFromSupabase,
   syncVendorToSupabase,
-  deleteVendorFromSupabase
+  deleteVendorFromSupabase,
+  syncStockMovementToSupabase,
+  fetchStockMovementsFromSupabase,
+  syncPurchaseOrderToSupabase,
+  fetchPurchaseOrdersFromSupabase,
+  syncJournalEntryToSupabase,
+  fetchJournalEntriesFromSupabase,
+  syncAuditLogToSupabase
 } from '../services/supabaseSyncService';
 import {
   getRouteFromPath,
@@ -243,6 +250,8 @@ interface ErpContextType {
   setReceivePayments: React.Dispatch<React.SetStateAction<ReceivePayment[]>>;
   collectors: Collector[];
   purchaseOrders: PurchaseOrder[];
+  setPurchaseOrders: React.Dispatch<React.SetStateAction<PurchaseOrder[]>>;
+  createPurchaseOrder: (po: PurchaseOrder) => void;
   stockMovements: StockMovement[];
   accounts: FinancialAccount[];
   setAccounts: React.Dispatch<React.SetStateAction<FinancialAccount[]>>;
@@ -1431,14 +1440,25 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const hydrateFromCloud = async () => {
       try {
-        const [cloudCustomers, cloudBookings, cloudOrders, cloudInvoices, cloudPayments] =
-          await Promise.all([
-            fetchCustomersFromSupabase(targetTenantId),
-            fetchServiceBookingsFromSupabase(targetTenantId),
-            fetchSalesOrdersFromSupabase(targetTenantId),
-            fetchInvoicesFromSupabase(targetTenantId),
-            fetchReceivePaymentsFromSupabase(targetTenantId)
-          ]);
+        const [
+          cloudCustomers,
+          cloudBookings,
+          cloudOrders,
+          cloudInvoices,
+          cloudPayments,
+          cloudMovements,
+          cloudPOs,
+          cloudJournals
+        ] = await Promise.all([
+          fetchCustomersFromSupabase(targetTenantId),
+          fetchServiceBookingsFromSupabase(targetTenantId),
+          fetchSalesOrdersFromSupabase(targetTenantId),
+          fetchInvoicesFromSupabase(targetTenantId),
+          fetchReceivePaymentsFromSupabase(targetTenantId),
+          fetchStockMovementsFromSupabase(targetTenantId),
+          fetchPurchaseOrdersFromSupabase(targetTenantId),
+          fetchJournalEntriesFromSupabase(targetTenantId)
+        ]);
 
         if (!isMounted) return;
 
@@ -1447,6 +1467,9 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSalesOrders(cloudOrders);
         setInvoices(cloudInvoices);
         setReceivePayments(cloudPayments);
+        if (cloudMovements && cloudMovements.length > 0) setStockMovements(cloudMovements);
+        if (cloudPOs && cloudPOs.length > 0) setPurchaseOrders(cloudPOs);
+        if (cloudJournals && cloudJournals.length > 0) setJournalEntries(cloudJournals);
 
         if (typeof window !== 'undefined') {
           try {
@@ -1468,7 +1491,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isMounted = false;
     };
   }, [tenant?.id]);
-  const [purchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [accounts, setAccounts] = useState<FinancialAccount[]>(() => INITIAL_FINANCIAL_ACCOUNTS);
   const [taxes, setTaxes] = useState<TaxRule[]>(() => INITIAL_TAXES);
@@ -1522,6 +1545,11 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [tenant.id]);
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  const recordAuditLog = (audit: AuditLog) => {
+    setAuditLogs((prev) => [audit, ...prev]);
+    syncAuditLogToSupabase(audit);
+  };
 
   // Modals & Panels
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -1743,7 +1771,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mendaftarkan pelanggan baru ${newCustomer.companyName} (${finalCode})`,
       ipAddress: '182.253.18.92'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     return newCustomer;
   };
@@ -1833,7 +1861,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Created service booking order ${finalNumber} for event: ${newBooking.eventTitle}`,
       ipAddress: '127.0.0.1'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     return newBooking;
   };
@@ -1923,7 +1951,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Created Sales Order ${finalNumber} for customer ${newOrder.customerName}`,
       ipAddress: '127.0.0.1'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     addToast('Sales Order Created', `Order ${finalNumber} created with status OPEN.`, 'success');
     return newOrder;
@@ -1991,7 +2019,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Generated Commercial Invoice ${finalNumber} for order ${newInvoice.sourceNumber}`,
       ipAddress: '127.0.0.1'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     addToast('Invoice Generated', `Commercial Invoice ${finalNumber} has been generated.`, 'success');
     return newInvoice;
@@ -2071,7 +2099,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mencatat Receive Payment ${finalNumber} senilai Rp ${newPayment.totalPaymentAmount.toLocaleString('id-ID')} untuk ${newPayment.customerName}`,
       ipAddress: '127.0.0.1'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     addToast(
       'Penerimaan Pembayaran Disimpan',
@@ -2191,6 +2219,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setStockMovements((prev) => [newMovement, ...prev]);
+    syncStockMovementToSupabase(newMovement);
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
@@ -2204,7 +2233,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Mutasi stok ${movementNumber}: ${data.quantity} ${data.uom} ${data.productName}`,
       ipAddress: '182.253.18.92'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     addToast('Mutasi Stok Dicatat', `${movementNumber} berhasil disimpan ke kartu stok`, 'success');
     return newMovement;
@@ -2224,6 +2253,7 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setJournalEntries((prev) => [newEntry, ...prev]);
+    syncJournalEntryToSupabase(newEntry);
 
     const audit: AuditLog = {
       id: `log_${Date.now()}`,
@@ -2237,10 +2267,15 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Draf voucher jurnal umum ${entryNumber} dibuat (Debit/Kredit seimbang)`,
       ipAddress: '182.253.18.92'
     };
-    setAuditLogs((prev) => [audit, ...prev]);
+    recordAuditLog(audit);
 
     addToast('Jurnal Draf Disimpan', `Nomor Jurnal: ${entryNumber}`, 'info');
     return newEntry;
+  };
+
+  const createPurchaseOrder = (poData: PurchaseOrder) => {
+    setPurchaseOrders((prev) => [poData, ...prev]);
+    syncPurchaseOrderToSupabase(poData);
   };
 
   // Keyboard shortcut for Cmd/Ctrl+K search
@@ -2320,6 +2355,8 @@ export const ErpProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setReceivePayments,
         collectors,
         purchaseOrders,
+        setPurchaseOrders,
+        createPurchaseOrder,
         stockMovements,
         accounts,
         setAccounts,

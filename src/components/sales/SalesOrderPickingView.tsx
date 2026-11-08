@@ -137,7 +137,7 @@ export const SalesOrderPickingView: React.FC = () => {
       }
 
       list.push({
-        id: `so_${so.id}`,
+        id: so.id.startsWith('so_') ? so.id : `so_${so.id}`,
         sourceType: 'goods',
         orderType: 'Goods',
         orderNumber: so.orderNumber,
@@ -198,7 +198,7 @@ export const SalesOrderPickingView: React.FC = () => {
       }
 
       list.push({
-        id: `sb_${sb.id}`,
+        id: sb.id.startsWith('sb_') ? sb.id : `sb_${sb.id}`,
         sourceType: derivedOrderType.toLowerCase().includes('goods') ? 'goods' : 'service',
         orderType: derivedOrderType,
         orderNumber: sb.bookingNumber,

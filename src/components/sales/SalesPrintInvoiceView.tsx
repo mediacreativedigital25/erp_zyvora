@@ -95,12 +95,15 @@ export const SalesPrintInvoiceView: React.FC = () => {
   // Helper to resolve DO Number
   const resolveDoNumber = (inv: SalesInvoice): string => {
     if (inv.deliveryOrderNumber) return inv.deliveryOrderNumber;
+    const cleanSourceId = inv.sourceId
+      ? inv.sourceId.replace(/^(sb_sb_|so_so_)/, (m) => (m === 'sb_sb_' ? 'sb_' : 'so_'))
+      : '';
     const foundSo = salesOrders.find(
-      (so) => so.orderNumber === inv.sourceNumber || so.id === inv.sourceId
+      (so) => so.orderNumber === inv.sourceNumber || so.id === inv.sourceId || so.id === cleanSourceId
     );
     if (foundSo?.deliveryOrderNumber) return foundSo.deliveryOrderNumber;
     const foundSb = serviceBookings.find(
-      (sb) => sb.bookingNumber === inv.sourceNumber || sb.id === inv.sourceId
+      (sb) => sb.bookingNumber === inv.sourceNumber || sb.id === inv.sourceId || sb.id === cleanSourceId
     );
     if (foundSb?.deliveryOrderNumber) return foundSb.deliveryOrderNumber;
     return `DO0120261000001`;
@@ -109,8 +112,11 @@ export const SalesPrintInvoiceView: React.FC = () => {
   // Helper to resolve Sales PIC / Salesman
   const resolveSalesman = (inv: SalesInvoice): string => {
     if (inv.salesPicName) return inv.salesPicName;
+    const cleanSourceId = inv.sourceId
+      ? inv.sourceId.replace(/^(sb_sb_|so_so_)/, (m) => (m === 'sb_sb_' ? 'sb_' : 'so_'))
+      : '';
     const foundSb = serviceBookings.find(
-      (sb) => sb.bookingNumber === inv.sourceNumber || sb.id === inv.sourceId
+      (sb) => sb.bookingNumber === inv.sourceNumber || sb.id === inv.sourceId || sb.id === cleanSourceId
     );
     if (foundSb?.salesPicName) return foundSb.salesPicName;
     return 'David Pratama';
