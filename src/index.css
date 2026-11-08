@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Global Color Tokens: Zyvora ERP 1.0.0 (Phase 2B PO Governance) */
+  --color-primary: #086288;
+  --color-primary-hover: #064B6A;
+  --color-primary-active: #043F59;
+  --color-primary-soft: #DCEEF5;
+  --color-primary-subtle: #EFF7FA;
+  --color-primary-border: #B7DDEA;
+
+  --color-app-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #EEF4F8;
+  --color-border-main: #DCE5EC;
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+
+  --color-semantic-success: #16A34A;
+  --color-semantic-warning: #D97706;
+  --color-semantic-error: #DC2626;
+  --color-semantic-info: #0284C7;
+
+  /* Master Tenant Palette: Warm Ivory, Deep Teal, Muted Sage */
+  --color-deep-teal: #0f3d38;
+  --color-deep-teal-hover: #0a2d29;
+  --color-muted-sage: #608074;
+  --color-muted-sage-light: #eef3f1;
+  --color-warm-ivory: #faf8f5;
+  --color-warm-ivory-surface: #fdfbf7;
+  --color-warm-ivory-border: #ede6dc;
+}
+
+:root {
+  --primary: #086288;
+  --primary-hover: #064B6A;
+  --primary-active: #043F59;
+  --primary-soft: #DCEEF5;
+  --primary-subtle: #EFF7FA;
+  --primary-border: #B7DDEA;
+
+  --app-bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-alt: #EEF4F8;
+  --border: #DCE5EC;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  --success: #16A34A;
+  --warning: #D97706;
+  --error: #DC2626;
+  --info: #0284C7;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  background-color: #F8FAFC;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tabular numerals for financial, balance, quantity, and numeric metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbars for clean enterprise workspaces */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
