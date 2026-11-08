@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Zyvora ERP — Katalog & Struktur Seluruh Menu Sistem</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 14mm 14mm;
+      @bottom-right {
+        content: counter(page) " / " counter(pages);
+      }
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.45;
+      color: #0F172A;
+      background: #FFFFFF;
+    }
+
+    /* Header styling */
+    .doc-header {
+      border-bottom: 2.5px solid #086288;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .brand-title {
+      font-size: 19pt;
+      font-weight: 800;
+      color: #086288;
+      letter-spacing: -0.5px;
+    }
+    .brand-subtitle {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #475569;
+      margin-top: 2px;
+    }
+    .doc-meta {
+      text-align: right;
+      font-size: 8pt;
+      color: #64748B;
+      line-height: 1.4;
+    }
+    .doc-meta strong {
+      color: #0F172A;
+    }
+
+    /* Executive summary cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .summary-card {
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #F8FAFC;
+    }
+    .summary-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748B;
+    }
+    .summary-value {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #086288;
+      margin-top: 2px;
+    }
+    .summary-desc {
+      font-size: 7pt;
+      color: #475569;
+      margin-top: 2px;
+    }
+
+    /* Policy Alert Box */
+    .policy-box {
+      background: #EFF7FA;
+      border: 1.5px solid #B7DDEA;
+      border-left: 5px solid #086288;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-size: 8.5pt;
+    }
+    .policy-box h3 {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #086288;
+      margin-bottom: 4px;
+    }
+    .policy-box ul {
+      margin-left: 18px;
+      margin-top: 4px;
+    }
+    .policy-box li {
+      margin-bottom: 2px;
+    }
+
+    /* Section / Module Table */
+    .module-section {
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+    .module-header {
+      background: #086288;
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+    .module-badge-count {
+      font-size: 8pt;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    table.menu-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      border: 1px solid #CBD5E1;
+      border-top: none;
+      margin-bottom: 8px;
+    }
+    table.menu-table th {
+      background: #F1F5F9;
+      color: #0F172A;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1.5px solid #CBD5E1;
+      border-right: 1px solid #E2E8F0;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    table.menu-table td {
+      padding: 5.5px 8px;
+      border-bottom: 1px solid #E2E8F0;
+      border-right: 1px solid #E2E8F0;
+      vertical-align: middle;
+    }
+    table.menu-table td:last-child, table.menu-table th:last-child {
+      border-right: none;
+    }
+    table.menu-table tr:nth-child(even) {
+      background: #F8FAFC;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .badge-ready {
+      background: #ECFDF5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+    .badge-pending {
+      background: #F1F5F9;
+      color: #475569;
+      border: 1px solid #CBD5E1;
+    }
+    .vis-show {
+      color: #086288;
+      font-weight: 700;
+      font-size: 7.5pt;
+    }
+    .vis-hide {
+      color: #DC2626;
+      font-weight: 600;
+      font-size: 7.5pt;
+    }
+
+    .code-pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #086288;
+      background: #EFF7FA;
+      border: 1px solid #B7DDEA;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .group-header-row td {
+      background: #E2E8F0 !important;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+      font-size: 7pt;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+    }
+
+    /* Footer */
+    .doc-footer {
+      margin-top: 24px;
+      border-top: 1.5px solid #CBD5E1;
+      padding-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 7.5pt;
+      color: #64748B;
+    }
+    .approval-table {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      font-size: 8pt;
+      page-break-inside: avoid;
+    }
+    .approval-table td {
+      width: 33.33%;
+      border: 1px solid #CBD5E1;
+      padding: 10px;
+      text-align: center;
+      background: #FFFFFF;
+    }
+    .sign-space {
+      height: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- DOCUMENT HEADER -->
+  <div class="doc-header">
+    <div>
+      <div class="brand-title">ZYVORA ERP 1.0.0</div>
+      <div class="brand-subtitle">Katalog & Struktur Seluruh Menu Sistem (All Menus Directory)</div>
+    </div>
+    <div class="doc-meta">
+      <div>No. Dokumen: <strong>DOC-ZYV-NAV-2026-001</strong></div>
+      <div>Tanggal Rilis: <strong>03 November 2026</strong></div>
+      <div>Standar UI: <strong>MEDIST 4.0 / Clean Deep Teal</strong></div>
+      <div>Status Otorisasi: <strong>Resmi (Approved for Execution)</strong></div>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Total Modul Utama</div>
+      <div class="summary-value">9 Modul</div>
+      <div class="summary-desc">Termasuk Dashboard & Master</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Total Keseluruhan Menu</div>
+      <div class="summary-value">59 Menu</div>
+      <div class="summary-desc">Seluruh cakupan fitur sistem</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Menu Siap Operasional</div>
+      <div class="summary-value" style="color: #059669;">26 Menu (44%)</div>
+      <div class="summary-desc">Aktif untuk seluruh role berwenang</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Menu Segera Tersedia</div>
+      <div class="summary-value" style="color: #DC2626;">33 Menu (56%)</div>
+      <div class="summary-desc">Disembunyikan dari non-Super Admin</div>
+    </div>
+  </div>
+
+  <!-- GOVERNANCE & ACCESS CONTROL POLICY -->
+  <div class="policy-box">
+    <h3>Kebijakan Otoritas & Visibilitas Menu (Role-Based Menu Visibility Policy)</h3>
+    <p>Berdasarkan arahan standarisasi operasional Zyvora ERP, visibilitas navigasi menu diatur dengan aturan mutlak sebagai berikut:</p>
+    <ul>
+      <li><strong>Role Super Admin (2A / Platform Administrator):</strong> Memiliki visibilitas penuh terhadap <strong>100% menu (59 menu)</strong>, termasuk 33 menu yang masih berstatus <em>Segera tersedia</em> dengan penanda ikon gembok untuk pengujian sandbox dan development.</li>
+      <li><strong>Role Selain Super Admin (Owner, Admin, Manager, Accountant, Inventory Staff, Cashier, Sales):</strong> Sistem secara otomatis <strong>hanya menampilkan 26 menu yang telah siap operasional</strong>. Seluruh 33 menu yang belum siap disembunyikan total dari sidebar dan dilindungi oleh Route Guard.</li>
+    </ul>
+  </div>
+
+  <!-- MODULE DIRECTORY -->
+  
+    <div class="module-section">
+      <div class="module-header">
+        <span>1. MODUL: DASHBOARD (dashboard)</span>
+        <span class="module-badge-count">1 Tersedia | 0 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">dashboard</span></td>
+                <td><strong>Dashboard</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Semua Role Terdaftar</td>
+                <td style="color: #475569; font-size: 7.5pt;">Dashboard analitik eksekutif & ringkasan operasional real-time</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>2. MODUL: SALES (sales)</span>
+        <span class="module-badge-count">4 Tersedia | 4 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">sales_order_service</span></td>
+                <td><strong>Sales Order</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Pesanan & transaksi penjualan barang dan layanan jasa</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">sales_order_receive</span></td>
+                <td><strong>Sales Order Receive</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Penerimaan & validasi konfirmasi pesanan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">sales_order_picking</span></td>
+                <td><strong>Sales Order Picking</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Garda terakhir validasi fisik & auto-invoice</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">sales_print_invoice</span></td>
+                <td><strong>Print Invoice</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Pencetakan faktur komersial penjualan resmi</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">sales_do_list</span></td>
+                <td><strong>Delivery Order List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Daftar surat jalan & pengiriman pesanan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">6</td>
+                <td><span class="code-pill">sales_order_list</span></td>
+                <td><strong>Sales Order List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Daftar riwayat pesanan penjualan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">7</td>
+                <td><span class="code-pill">sales_order_cancellation</span></td>
+                <td><strong>Sales Order Cancellation</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Manajemen pembatalan pesanan penjualan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">8</td>
+                <td><span class="code-pill">sales_report</span></td>
+                <td><strong>Sales Report</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Sales / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Laporan komprehensif penjualan</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>3. MODUL: INVENTORY (inventory)</span>
+        <span class="module-badge-count">3 Tersedia | 6 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">inv_list_product</span></td>
+                <td><strong>Products & Services</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Unified catalog for physical items, services, commercial pricing, and cost centers</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">inv_category</span></td>
+                <td><strong>Categories & UoM</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Product merchandise classifications and conversion units of measure</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">inv_warehouse</span></td>
+                <td><strong>Warehouses & Facilities</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Physical storage directory, capacities, and stock keeping zones</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">inv_stock_overview</span></td>
+                <td><strong>Stock Overview</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Ringkasan posisi stok fisik</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">inv_stock_movement</span></td>
+                <td><strong>Stock Movement</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Mutasi dan jejak pergerakan stok</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">6</td>
+                <td><span class="code-pill">inv_stock_adjustment</span></td>
+                <td><strong>Stock Adjustment</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Penyesuaian kuantitas & nilai persediaan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">7</td>
+                <td><span class="code-pill">inv_stock_opname</span></td>
+                <td><strong>Stock Opname</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Perhitungan fisik stok berkala</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">8</td>
+                <td><span class="code-pill">inv_stock_transfer</span></td>
+                <td><strong>Stock Transfer</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Transfer persediaan antar gudang</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">9</td>
+                <td><span class="code-pill">inv_report</span></td>
+                <td><strong>Inventory Report</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Staff Gudang / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Laporan valuasi dan analisis persediaan</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>4. MODUL: ACCOUNT RECEIVABLE (account_receivable)</span>
+        <span class="module-badge-count">1 Tersedia | 7 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">ar_invoice_collection</span></td>
+                <td><strong>Invoice Collection</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Manajemen penagihan faktur</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">ar_receive_payment</span></td>
+                <td><strong>Receive Payment</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Penerimaan pembayaran pelanggan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">ar_resume_invoice</span></td>
+                <td><strong>Resume Invoice</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Ikhtisar dan rekapitulasi faktur</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">ar_invoice_list</span></td>
+                <td><strong>Invoice List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Daftar faktur piutang usaha</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">ar_outstanding_invoice</span></td>
+                <td><strong>Outstanding Invoice</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Faktur belum tertagih jatuh tempo</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">6</td>
+                <td><span class="code-pill">ar_aging_receivable</span></td>
+                <td><strong>Aging Receivable</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Skedul umur piutang usaha (AR Aging)</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">7</td>
+                <td><span class="code-pill">ar_payment_history</span></td>
+                <td><strong>Payment History</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Riwayat jejak pelunasan pembayaran</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">8</td>
+                <td><span class="code-pill">ar_report</span></td>
+                <td><strong>Receivable Report</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Finance / Kasir / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Laporan analisis piutang usaha</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>5. MODUL: CASH MANAGEMENT (cash_management)</span>
+        <span class="module-badge-count">2 Tersedia | 3 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">cash_bank_transfer_list</span></td>
+                <td><strong>Bank Transfer List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Kasir / Finance / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Daftar transfer antar rekening bank</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">cash_transaction</span></td>
+                <td><strong>Cash Transaction</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Kasir / Finance / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Transaksi kas kecil dan kas operasional (Receipt & Issue)</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">cash_claim_expense</span></td>
+                <td><strong>Claim Expense</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Kasir / Finance / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Operational employee expense claims, reimbursements, and fleet fuel logs</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">cash_advance</span></td>
+                <td><strong>Cash Advance</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Kasir / Finance / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Pengajuan dan pencairan kasbon / uang muka kerja</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">cash_print_report</span></td>
+                <td><strong>Print Cash Report</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Kasir / Finance / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Cetak laporan arus kas operasional</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>6. MODUL: APPROVAL (approval)</span>
+        <span class="module-badge-count">1 Tersedia | 0 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">approval_list</span></td>
+                <td><strong>Approval List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Manager / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Daftar dokumen dalam antrean persetujuan (Expense Claims, PO, dll)</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>7. MODUL: HUMAN RESOURCES (HR/SDM) (human_resources)</span>
+        <span class="module-badge-count">4 Tersedia | 11 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              <tr class="group-header-row"><td colspan="7">Kelompok: Organization & Personnel</td></tr>
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">hr_employee_list</span></td>
+                <td><strong>Employee List</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff HR / Manager / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Personnel directory and comprehensive employee profiles</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">hr_position_dept</span></td>
+                <td><strong>Position & Department</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff HR / Manager / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Department divisions, job positions, and cost center bindings</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">hr_org_structure</span></td>
+                <td><strong>Organization Structure</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Staff HR / Manager / Admin</td>
+                <td style="color: #475569; font-size: 7.5pt;">Visual organizational hierarchy and reporting lines</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">hr_recruitment</span></td>
+                <td><strong>Employee Recruitment</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Talent acquisition and job applicant pipeline</td>
+              </tr>
+            
+              <tr class="group-header-row"><td colspan="7">Kelompok: Kehadiran & Waktu Kerja</td></tr>
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">hr_attendance</span></td>
+                <td><strong>Attendance</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Presensi dan catatan kehadiran</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">6</td>
+                <td><span class="code-pill">hr_work_schedule</span></td>
+                <td><strong>Work Schedule & Shift</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Jadwal kerja dan penugasan shift</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">7</td>
+                <td><span class="code-pill">hr_leave_permission</span></td>
+                <td><strong>Leave & Permission</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Permohonan cuti dan izin kerja</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">8</td>
+                <td><span class="code-pill">hr_overtime</span></td>
+                <td><strong>Overtime</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Pencatatan dan persetujuan lembur</td>
+              </tr>
+            
+              <tr class="group-header-row"><td colspan="7">Kelompok: Kompensasi & Pengembangan</td></tr>
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">9</td>
+                <td><span class="code-pill">hr_payroll</span></td>
+                <td><strong>Payroll</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Perhitungan dan pemrosesan gaji karyawan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">10</td>
+                <td><span class="code-pill">hr_payslip</span></td>
+                <td><strong>Payslip</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Penerbitan slip gaji elektronik</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">11</td>
+                <td><span class="code-pill">hr_benefits</span></td>
+                <td><strong>Benefits & Allowances</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Manajemen tunjangan dan benefit karyawan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">12</td>
+                <td><span class="code-pill">hr_performance_kpi</span></td>
+                <td><strong>Performance & KPI</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Penilaian kinerja dan Key Performance Indicators</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">13</td>
+                <td><span class="code-pill">hr_training_dev</span></td>
+                <td><strong>Training & Development</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Program pelatihan dan peningkatan kompetensi</td>
+              </tr>
+            
+              <tr class="group-header-row"><td colspan="7">Kelompok: Administrasi</td></tr>
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">14</td>
+                <td><span class="code-pill">hr_employee_docs</span></td>
+                <td><strong>Employee Documents</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Arsip berkas, kontrak, dan dokumen karyawan</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">15</td>
+                <td><span class="code-pill">hr_reports</span></td>
+                <td><strong>HR Reports</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">HR / Admin / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Laporan dan statistik sumber daya manusia</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>8. MODUL: MASTER (master_data)</span>
+        <span class="module-badge-count">9 Tersedia | 0 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">master_company_profile</span></td>
+                <td><strong>Company Profile</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Company legal identity, brand trademarks, NIB, tax ID, official contacts, address, and logos</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">master_market_business_line</span></td>
+                <td><strong>Market & Business Lines</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Industry classifications, business models, and multi-business lines directory</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">master_branches_business_units</span></td>
+                <td><strong>Branches & Business Units</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Operational branch hierarchy and legal subsidiary corporate entities</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">4</td>
+                <td><span class="code-pill">master_taxes</span></td>
+                <td><strong>Taxes & Duties</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">VAT/PPN rates, income withholding taxes, commercial deductions, and GL account mappings</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">5</td>
+                <td><span class="code-pill">master_business_contacts</span></td>
+                <td><strong>Business Contacts</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Directory for commercial partners, B2B customers, certified vendors, and freight carriers</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">6</td>
+                <td><span class="code-pill">master_finance</span></td>
+                <td><strong>Finance & Accounts</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Chart of Accounts (CoA), holding bank accounts, petty cash vaults, and expense claim rules</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">7</td>
+                <td><span class="code-pill">master_vehicles</span></td>
+                <td><strong>Vehicles & Fleet</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Operational fleet directory, license plate registry, custodians, and tax due date monitoring</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">8</td>
+                <td><span class="code-pill">master_system_config</span></td>
+                <td><strong>System Configuration</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Base accounting currency, transaction timezones, date formatting, and fiscal year cycle</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">9</td>
+                <td><span class="code-pill">rbac</span></td>
+                <td><strong>Tenant Members & RBAC</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Administrator / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Organization member directory, operational role assignments, and tenant staff access control</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="module-section">
+      <div class="module-header">
+        <span>9. MODUL: REPORTING (reporting)</span>
+        <span class="module-badge-count">1 Tersedia | 2 Disembunyikan</span>
+      </div>
+
+      <table class="menu-table">
+        <thead>
+          <tr>
+            <th style="width: 32px; text-align: center;">No</th>
+            <th style="width: 140px;">Kode / ID Menu</th>
+            <th style="width: 160px;">Nama Menu (Label)</th>
+            <th style="width: 100px; text-align: center;">Kesiapan</th>
+            <th style="width: 125px; text-align: center;">Visibilitas Staf</th>
+            <th style="width: 130px;">Role Minimum</th>
+            <th>Deskripsi Fungsi & Ruang Lingkup</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">1</td>
+                <td><span class="code-pill">reporting_cost_ratio</span></td>
+                <td><strong>Cost Ratio</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-ready">Siap Pakai</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-show">&#x2714; Tampil</span>
+                </td>
+                <td style="color: #334155;">Manager / Direksi / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Comprehensive business line revenue vs cost analysis, holding allocations, and efficiency thresholds</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">2</td>
+                <td><span class="code-pill">reporting_sales_performance</span></td>
+                <td><strong>Sales Performance</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Manager / Direksi / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Commercial sales revenue breakdown across brands and channels</td>
+              </tr>
+            
+              
+              <tr>
+                <td style="text-align: center; color: #64748B; font-weight: 600;">3</td>
+                <td><span class="code-pill">reporting_expense_cashflow</span></td>
+                <td><strong>Expense & Cashflow</strong></td>
+                <td style="text-align: center;">
+                  <span class="badge badge-pending">Segera Tersedia</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="vis-hide">&#x1F6AB; Sembunyi</span>
+                </td>
+                <td style="color: #334155;">Manager / Direksi / Owner</td>
+                <td style="color: #475569; font-size: 7.5pt;">Operational disbursement audit and petty cash outflow logs</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+    
+
+  <!-- APPROVAL SIGN-OFF SECTION -->
+  <table class="approval-table">
+    <tr>
+      <td>
+        <div style="font-weight: 700; color: #475569; font-size: 7.5pt;">Disiapkan Oleh:</div>
+        <div style="font-weight: 700; color: #086288; margin-top: 4px;">Product Engineering & UI Architect</div>
+        <div class="sign-space"></div>
+        <div style="font-weight: 700; border-top: 1px solid #CBD5E1; padding-top: 4px;">Antigravity Lead Architect</div>
+        <div style="font-size: 7pt; color: #64748B;">Zyvora ERP System Core</div>
+      </td>
+      <td>
+        <div style="font-weight: 700; color: #475569; font-size: 7.5pt;">Diverifikasi Oleh:</div>
+        <div style="font-weight: 700; color: #086288; margin-top: 4px;">Quality Assurance & Compliance</div>
+        <div class="sign-space"></div>
+        <div style="font-weight: 700; border-top: 1px solid #CBD5E1; padding-top: 4px;">Lead QA & Security Officer</div>
+        <div style="font-size: 7pt; color: #64748B;">Role Governance & RBAC</div>
+      </td>
+      <td>
+        <div style="font-weight: 700; color: #475569; font-size: 7.5pt;">Disetujui Oleh:</div>
+        <div style="font-weight: 700; color: #086288; margin-top: 4px;">Product Owner & Super Admin</div>
+        <div class="sign-space"></div>
+        <div style="font-weight: 700; border-top: 1px solid #CBD5E1; padding-top: 4px;">Product Owner / Super Admin</div>
+        <div style="font-size: 7pt; color: #64748B;">Zyvora ERP Platform</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <div>Zyvora ERP 1.0.0 &bull; Hak Cipta &copy; 2026. Seluruh hak cipta dilindungi undang-undang.</div>
+    <div>Dicetak otomatis dari sumber kode tunggal <code>src/config/navigation.ts</code></div>
+  </div>
+
+</body>
+</html>
